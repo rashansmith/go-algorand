@@ -1038,7 +1038,7 @@ func TestTxn(t *testing.T) {
 	recs := make([]basics.BalanceRecord, 4)
 	recs[3].MicroAlgos.Raw = 4160
 	sb := strings.Builder{}
-	pass, err := Eval(program, EvalParams{Trace: &sb, Txn: &txn, GroupSenders: recs, GroupIndex: 3})
+	pass, err := Eval(program, EvalParams{Trace: &sb, Txn: &txn, GroupIndex: 3, FirstValidTimeStamp: 210})
 	if !pass {
 		t.Log(hex.EncodeToString(program))
 		t.Log(sb.String())

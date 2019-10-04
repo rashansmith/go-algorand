@@ -94,7 +94,9 @@ type EvalParams struct {
 	GroupIndex int
 
 	// for each sender in TxnGroup, its BalanceRecord
-	GroupSenders []basics.BalanceRecord
+	//GroupSenders []basics.BalanceRecord
+
+	FirstValidTimeStamp uint64
 
 	// pseudo random number generator, or seed parts
 	Source   Source64
@@ -1000,8 +1002,7 @@ func (cx *evalContext) txnFieldToStack(txn *transactions.Transaction, field uint
 	case FirstValid:
 		sv.Uint = uint64(txn.FirstValid)
 	case FirstValidTime:
-		fmt.Print("FIXME TODO write txn FirstValidTime\n")
-		sv.Uint = 0
+		sv.Uint = cx.FirstValidTimeStamp
 	case LastValid:
 		sv.Uint = uint64(txn.LastValid)
 	case Note:
@@ -1076,11 +1077,11 @@ func opGtxn(cx *evalContext) {
 	field := uint64(cx.program[cx.pc+2])
 	var sv stackValue
 	var err error
-	if field == 20 {
+	if TxnField(field) == GroupIndex {
 		// GroupIndex; asking this when we just specified it is _dumb_, but oh well
 		sv.Uint = uint64(gtxid)
-	} else if field == 22 {
-		sv.Uint = cx.GroupSenders[gtxid].MicroAlgos.Raw
+		/*} else if field == 22 {
+		sv.Uint = cx.GroupSenders[gtxid].MicroAlgos.Raw*/
 	} else {
 		sv, err = cx.txnFieldToStack(tx, field)
 		if err != nil {
