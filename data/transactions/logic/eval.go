@@ -29,6 +29,7 @@ import (
 	"math/big"
 	"runtime"
 	"sort"
+	"strings"
 
 	"golang.org/x/crypto/sha3"
 
@@ -159,7 +160,7 @@ type PanicError struct {
 }
 
 func (pe PanicError) Error() string {
-	return fmt.Sprintf("panic in TEAL Eval: %v\n%s\n", pe.PanicValue, pe.StackTrace)
+	return fmt.Sprintf("panic in TEAL Eval: %v\n%s", pe.PanicValue, pe.StackTrace)
 }
 
 // Eval checks to see if a transaction passes logic
@@ -170,11 +171,21 @@ func Eval(program []byte, params EvalParams) (pass bool, err error) {
 			buf := make([]byte, 16*1024)
 			stlen := runtime.Stack(buf, false)
 			pass = false
-			err = PanicError{x, string(buf[:stlen])}
+			errstr := string(buf[:stlen])
+			if params.Trace != nil {
+				if sb, ok := params.Trace.(*strings.Builder); ok {
+					errstr += sb.String()
+				}
+			}
+			err = PanicError{x, errstr}
 		}
 	}()
 	var cx evalContext
 	version, vlen := binary.Uvarint(program)
+	if vlen <= 0 {
+		cx.err = errors.New("invalid version")
+		return false, cx.err
+	}
 	if version > EvalMaxVersion {
 		cx.err = fmt.Errorf("program version %d greater than max supported version %d", version, EvalMaxVersion)
 		return false, cx.err
@@ -219,8 +230,20 @@ func Eval(program []byte, params EvalParams) (pass bool, err error) {
 // Check should be faster than Eval.
 // Returns 'cost' which is an estimate of relative execution time.
 func Check(program []byte, params EvalParams) (cost int, err error) {
+	defer func() {
+		if x := recover(); x != nil {
+			buf := make([]byte, 16*1024)
+			stlen := runtime.Stack(buf, false)
+			cost = 0
+			err = PanicError{x, string(buf[:stlen])}
+		}
+	}()
 	var cx evalContext
 	version, vlen := binary.Uvarint(program)
+	if vlen <= 0 {
+		cx.err = errors.New("invalid version")
+		return 0, cx.err
+	}
 	if version > EvalMaxVersion {
 		err = fmt.Errorf("program version %d greater than max supported version %d", version, EvalMaxVersion)
 		return
@@ -424,6 +447,11 @@ func (cx *evalContext) step() {
 			}
 		}
 	}
+	oz := opSizeByOpcode[opcode]
+	if oz.size != 0 && (cx.pc+oz.size > len(cx.program)) {
+		cx.err = fmt.Errorf("%3d %s program ends short of immediate values", cx.pc, opsByOpcode[opcode].Name)
+		return
+	}
 	opsByOpcode[opcode].op(cx)
 	if cx.Trace != nil {
 		if len(cx.stack) == 0 {
@@ -472,6 +500,10 @@ func (cx *evalContext) checkStep() (cost int) {
 		cx.checkStack = cx.checkStack[:len(cx.checkStack)-poplen]
 	}
 	oz := opSizeByOpcode[opcode]
+	if oz.size != 0 && (cx.pc+oz.size > len(cx.program)) {
+		cx.err = fmt.Errorf("%3d %s program ends short of immediate values", cx.pc, opsByOpcode[opcode].Name)
+		return 0
+	}
 	if oz.checkFunc != nil {
 		cost = oz.checkFunc(cx)
 		if cx.nextpc != 0 {
@@ -608,7 +640,7 @@ func opMul(cx *evalContext) {
 	a := cx.stack[prev].Uint
 	b := cx.stack[last].Uint
 	v := a * b
-	if v/a != b {
+	if (a != 0) && (b != 0) && (v/a != b) {
 		cx.err = errors.New("* overflowed")
 		return
 	}

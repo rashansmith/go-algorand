@@ -950,6 +950,10 @@ func parseIntcblock(program []byte, pc int) (intc []uint64, nextpc int, err erro
 	pos += bytesUsed
 	intc = make([]uint64, numInts)
 	for i := uint64(0); i < numInts; i++ {
+		if pos >= len(program) {
+			err = fmt.Errorf("bytecblock ran past end of program")
+			return
+		}
 		intc[i], bytesUsed = binary.Uvarint(program[pos:])
 		if bytesUsed <= 0 {
 			err = fmt.Errorf("could not decode int const[%d] at pc=%d", i, pos)
@@ -971,6 +975,10 @@ func checkIntConstBlock(cx *evalContext) int {
 	pos += bytesUsed
 	//intc = make([]uint64, numInts)
 	for i := uint64(0); i < numInts; i++ {
+		if pos >= len(cx.program) {
+			cx.err = fmt.Errorf("bytecblock ran past end of program")
+			return 0
+		}
 		_, bytesUsed = binary.Uvarint(cx.program[pos:])
 		if bytesUsed <= 0 {
 			cx.err = fmt.Errorf("could not decode int const[%d] at pc=%d", i, pos)
@@ -992,12 +1000,20 @@ func parseBytecBlock(program []byte, pc int) (bytec [][]byte, nextpc int, err er
 	pos += bytesUsed
 	bytec = make([][]byte, numItems)
 	for i := uint64(0); i < numItems; i++ {
+		if pos >= len(program) {
+			err = fmt.Errorf("bytecblock ran past end of program")
+			return
+		}
 		itemLen, bytesUsed := binary.Uvarint(program[pos:])
 		if bytesUsed <= 0 {
 			err = fmt.Errorf("could not decode []byte const[%d] at pc=%d", i, pos)
 			return
 		}
 		pos += bytesUsed
+		if pos >= len(program) {
+			err = fmt.Errorf("bytecblock ran past end of program")
+			return
+		}
 		bytec[i] = program[pos : pos+int(itemLen)]
 		pos += int(itemLen)
 	}
@@ -1015,12 +1031,20 @@ func checkByteConstBlock(cx *evalContext) int {
 	pos += bytesUsed
 	//bytec = make([][]byte, numItems)
 	for i := uint64(0); i < numItems; i++ {
+		if pos >= len(cx.program) {
+			cx.err = fmt.Errorf("bytecblock ran past end of program")
+			return 0
+		}
 		itemLen, bytesUsed := binary.Uvarint(cx.program[pos:])
 		if bytesUsed <= 0 {
 			cx.err = fmt.Errorf("could not decode []byte const[%d] at pc=%d", i, pos)
 			return 1
 		}
 		pos += bytesUsed
+		if pos >= len(cx.program) {
+			cx.err = fmt.Errorf("bytecblock ran past end of program")
+			return 0
+		}
 		//bytec[i] = program[pos : pos+int(itemLen)]
 		pos += int(itemLen)
 	}
@@ -1140,6 +1164,10 @@ func Disassemble(program []byte) (text string, err error) {
 	out := strings.Builder{}
 	dis := disassembleState{program: program, out: &out}
 	version, vlen := binary.Uvarint(program)
+	if vlen <= 0 {
+		fmt.Fprintf(dis.out, "// invalid version\n")
+		return out.String(), nil
+	}
 	fmt.Fprintf(dis.out, "// version %d\n", version)
 	dis.pc = vlen
 	for dis.pc < len(program) {

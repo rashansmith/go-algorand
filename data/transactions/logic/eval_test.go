@@ -127,12 +127,13 @@ func TestTLHC(t *testing.T) {
 	}
 	require.NoError(t, err)
 	require.True(t, cost < 1000)
-	pass, _ := Eval(program, ep)
+	pass, err := Eval(program, ep)
 	if pass {
 		t.Log(hex.EncodeToString(program))
 		t.Log(sb.String())
 	}
 	require.False(t, pass)
+	isNotPanic(t, err)
 
 	txn.Txn.Receiver = a2
 	txn.Txn.CloseRemainderTo = a2
@@ -151,12 +152,13 @@ func TestTLHC(t *testing.T) {
 	sb = strings.Builder{}
 	txn.Txn.FirstValid = 1
 	ep = EvalParams{Txn: &txn, Trace: &sb, Block: &block}
-	pass, _ = Eval(program, ep)
+	pass, err = Eval(program, ep)
 	if pass {
 		t.Log(hex.EncodeToString(program))
 		t.Log(sb.String())
 	}
 	require.False(t, pass)
+	isNotPanic(t, err)
 
 	txn.Txn.Receiver = a1
 	txn.Txn.CloseRemainderTo = a1
@@ -176,12 +178,13 @@ func TestTLHC(t *testing.T) {
 	sb = strings.Builder{}
 	block.BlockHeader.Round = 1
 	ep = EvalParams{Txn: &txn, Trace: &sb, Block: &block}
-	pass, _ = Eval(program, ep)
+	pass, err = Eval(program, ep)
 	if pass {
 		t.Log(hex.EncodeToString(program))
 		t.Log(sb.String())
 	}
 	require.False(t, pass)
+	isNotPanic(t, err)
 }
 
 func TestU64Math(t *testing.T) {
@@ -308,6 +311,7 @@ btoi
 	}
 	require.False(t, pass)
 	require.Error(t, err)
+	isNotPanic(t, err)
 }
 
 func TestBnz(t *testing.T) {
@@ -352,6 +356,7 @@ int 1`)
 	}
 	require.False(t, pass)
 	require.Error(t, err)
+	isNotPanic(t, err)
 }
 
 func TestAddOverflow(t *testing.T) {
@@ -373,6 +378,7 @@ int 1`)
 	}
 	require.False(t, pass)
 	require.Error(t, err)
+	isNotPanic(t, err)
 }
 
 func TestMulOverflow(t *testing.T) {
@@ -394,6 +400,7 @@ int 1`)
 	}
 	require.False(t, pass)
 	require.Error(t, err)
+	isNotPanic(t, err)
 }
 
 func TestMulwImpl(t *testing.T) {
@@ -474,6 +481,7 @@ int 1`)
 	}
 	require.False(t, pass)
 	require.Error(t, err)
+	isNotPanic(t, err)
 }
 
 func TestModZero(t *testing.T) {
@@ -495,6 +503,7 @@ int 1`)
 	}
 	require.False(t, pass)
 	require.Error(t, err)
+	isNotPanic(t, err)
 }
 
 func TestErr(t *testing.T) {
@@ -513,6 +522,7 @@ int 1`)
 	}
 	require.False(t, pass)
 	require.Error(t, err)
+	isNotPanic(t, err)
 }
 
 func TestModSubMulOk(t *testing.T) {
@@ -546,10 +556,11 @@ func TestPop(t *testing.T) {
 int 0
 pop`)
 	require.NoError(t, err)
-	cost, err := Check(program, EvalParams{})
+	sb := strings.Builder{}
+	cost, err := Check(program, EvalParams{Trace: &sb})
 	require.NoError(t, err)
 	require.True(t, cost < 1000)
-	sb := strings.Builder{}
+	sb = strings.Builder{}
 	pass, err := Eval(program, EvalParams{Trace: &sb})
 	if !pass {
 		t.Log(hex.EncodeToString(program))
@@ -564,10 +575,11 @@ func TestStackLeftover(t *testing.T) {
 	program, err := AssembleString(`int 1
 int 1`)
 	require.NoError(t, err)
-	cost, err := Check(program, EvalParams{})
+	sb := strings.Builder{}
+	cost, err := Check(program, EvalParams{Trace: &sb})
 	require.Error(t, err)
 	require.True(t, cost < 1000)
-	sb := strings.Builder{}
+	sb = strings.Builder{}
 	pass, err := Eval(program, EvalParams{Trace: &sb})
 	if pass {
 		t.Log(hex.EncodeToString(program))
@@ -575,16 +587,18 @@ int 1`)
 	}
 	require.Error(t, err)
 	require.False(t, pass)
+	isNotPanic(t, err)
 }
 
 func TestStackBytesLeftover(t *testing.T) {
 	t.Parallel()
 	program, err := AssembleString(`byte 0x10101010`)
 	require.NoError(t, err)
-	cost, err := Check(program, EvalParams{})
+	sb := strings.Builder{}
+	cost, err := Check(program, EvalParams{Trace: &sb})
 	require.Error(t, err)
 	require.True(t, cost < 1000)
-	sb := strings.Builder{}
+	sb = strings.Builder{}
 	pass, err := Eval(program, EvalParams{Trace: &sb})
 	if pass {
 		t.Log(hex.EncodeToString(program))
@@ -592,6 +606,7 @@ func TestStackBytesLeftover(t *testing.T) {
 	}
 	require.Error(t, err)
 	require.False(t, pass)
+	isNotPanic(t, err)
 }
 
 func TestStackEmpty(t *testing.T) {
@@ -612,6 +627,7 @@ pop`)
 	}
 	require.Error(t, err)
 	require.False(t, pass)
+	isNotPanic(t, err)
 }
 
 func TestArgTooFar(t *testing.T) {
@@ -633,6 +649,7 @@ btoi`)
 	}
 	require.Error(t, err)
 	require.False(t, pass)
+	isNotPanic(t, err)
 }
 
 func TestIntcTooFar(t *testing.T) {
@@ -653,6 +670,7 @@ func TestIntcTooFar(t *testing.T) {
 	}
 	require.Error(t, err)
 	require.False(t, pass)
+	isNotPanic(t, err)
 }
 
 func TestBytecTooFar(t *testing.T) {
@@ -674,6 +692,7 @@ btoi`)
 	}
 	require.Error(t, err)
 	require.False(t, pass)
+	isNotPanic(t, err)
 }
 
 func TestTxnBadField(t *testing.T) {
@@ -693,6 +712,7 @@ func TestTxnBadField(t *testing.T) {
 	}
 	require.Error(t, err)
 	require.False(t, pass)
+	isNotPanic(t, err)
 }
 
 func TestGtxnBadIndex(t *testing.T) {
@@ -714,6 +734,7 @@ func TestGtxnBadIndex(t *testing.T) {
 	}
 	require.Error(t, err)
 	require.False(t, pass)
+	isNotPanic(t, err)
 }
 
 func TestGtxnBadField(t *testing.T) {
@@ -735,6 +756,7 @@ func TestGtxnBadField(t *testing.T) {
 	}
 	require.Error(t, err)
 	require.False(t, pass)
+	isNotPanic(t, err)
 }
 
 func TestGlobalBadField(t *testing.T) {
@@ -754,6 +776,7 @@ func TestGlobalBadField(t *testing.T) {
 	}
 	require.Error(t, err)
 	require.False(t, pass)
+	isNotPanic(t, err)
 }
 
 func TestArg(t *testing.T) {
@@ -1315,6 +1338,15 @@ byte 0x98D2C31612EA500279B6753E5F6E780CA63EBA8274049664DAD66A2565ED1D2A
 	require.True(t, pass)
 }
 
+func isNotPanic(t *testing.T, err error) {
+	if err == nil {
+		return
+	}
+	if pe, ok := err.(PanicError); ok {
+		t.Error(pe)
+	}
+}
+
 func TestStackUnderflow(t *testing.T) {
 	t.Parallel()
 	program, err := AssembleString(`int 1`)
@@ -1330,6 +1362,7 @@ func TestStackUnderflow(t *testing.T) {
 		t.Log(sb.String())
 	}
 	require.False(t, pass)
+	isNotPanic(t, err)
 }
 
 func TestWrongStackTypeRuntime(t *testing.T) {
@@ -1347,6 +1380,7 @@ func TestWrongStackTypeRuntime(t *testing.T) {
 		t.Log(sb.String())
 	}
 	require.False(t, pass)
+	isNotPanic(t, err)
 }
 
 func TestEqMismatch(t *testing.T) {
@@ -1365,6 +1399,7 @@ int 1`)
 		t.Log(sb.String())
 	}
 	require.False(t, pass)
+	isNotPanic(t, err)
 }
 
 func TestNeqMismatch(t *testing.T) {
@@ -1383,6 +1418,7 @@ int 1`)
 		t.Log(sb.String())
 	}
 	require.False(t, pass)
+	isNotPanic(t, err)
 }
 
 func TestWrongStackTypeRuntime2(t *testing.T) {
@@ -1401,6 +1437,7 @@ int 1`)
 		t.Log(sb.String())
 	}
 	require.False(t, pass)
+	isNotPanic(t, err)
 }
 
 func TestIllegalOp(t *testing.T) {
@@ -1423,6 +1460,56 @@ func TestIllegalOp(t *testing.T) {
 		t.Log(sb.String())
 	}
 	require.False(t, pass)
+	isNotPanic(t, err)
+}
+
+func TestShortProgram(t *testing.T) {
+	t.Parallel()
+	program, err := AssembleString(`int 1
+bnz done
+done:`)
+	require.NoError(t, err)
+	program = program[:len(program)-1]
+	cost, err := Check(program, EvalParams{})
+	require.Error(t, err)
+	require.True(t, cost < 1000)
+	sb := strings.Builder{}
+	pass, err := Eval(program, EvalParams{Trace: &sb})
+	if pass {
+		t.Log(hex.EncodeToString(program))
+		t.Log(sb.String())
+	}
+	require.False(t, pass)
+	isNotPanic(t, err)
+}
+
+func TestShortBytecblock(t *testing.T) {
+	t.Parallel()
+	sources := []string{
+		"0126",
+		"012602",
+		"01260201",
+		"01260201ff",
+		"01260201ff01",
+	}
+	for _, src := range sources {
+		t.Run(src, func(t *testing.T) {
+			program, err := hex.DecodeString(src)
+			program = program[:len(program)-1]
+			cost, err := Check(program, EvalParams{})
+			require.Error(t, err)
+			isNotPanic(t, err)
+			require.True(t, cost < 1000)
+			sb := strings.Builder{}
+			pass, err := Eval(program, EvalParams{Trace: &sb})
+			if pass {
+				t.Log(hex.EncodeToString(program))
+				t.Log(sb.String())
+			}
+			require.False(t, pass)
+			isNotPanic(t, err)
+		})
+	}
 }
 
 const panicString = "out of memory, buffer overrun, stack overflow, divide by zero, halt and catch fire"
@@ -1454,6 +1541,8 @@ func TestPanic(t *testing.T) {
 	require.False(t, pass)
 	if pe, ok := err.(PanicError); ok {
 		require.Equal(t, panicString, pe.PanicValue)
+		pes := pe.Error()
+		require.True(t, strings.Contains(pes, "panic"))
 	} else {
 		t.Errorf("expected PanicError object but got %T %#v", err, err)
 	}
@@ -1466,9 +1555,24 @@ func TestProgramTooNew(t *testing.T) {
 	vlen := binary.PutUvarint(program[:], EvalMaxVersion+1)
 	_, err := Check(program[:vlen], EvalParams{})
 	require.Error(t, err)
+	isNotPanic(t, err)
 	pass, err := Eval(program[:vlen], EvalParams{})
 	require.Error(t, err)
 	require.False(t, pass)
+	isNotPanic(t, err)
+}
+
+func TestInvalidVersion(t *testing.T) {
+	t.Parallel()
+	program, err := hex.DecodeString("ffffffffffffffffffffffff")
+	require.NoError(t, err)
+	_, err = Check(program, EvalParams{})
+	require.Error(t, err)
+	isNotPanic(t, err)
+	pass, err := Eval(program, EvalParams{})
+	require.Error(t, err)
+	require.False(t, pass)
+	isNotPanic(t, err)
 }
 
 func TestProgramProtoForbidden(t *testing.T) {
@@ -1483,6 +1587,7 @@ func TestProgramProtoForbidden(t *testing.T) {
 	pass, err := Eval(program[:vlen], EvalParams{Proto: &proto})
 	require.Error(t, err)
 	require.False(t, pass)
+	isNotPanic(t, err)
 }
 
 func TestMisalignedBranch(t *testing.T) {
@@ -1504,6 +1609,7 @@ int 1`)
 	pass, err := Eval(program, EvalParams{})
 	require.Error(t, err)
 	require.False(t, pass)
+	isNotPanic(t, err)
 }
 
 func TestBranchTooFar(t *testing.T) {
@@ -1525,6 +1631,7 @@ int 1`)
 	pass, err := Eval(program, EvalParams{})
 	require.Error(t, err)
 	require.False(t, pass)
+	isNotPanic(t, err)
 }
 
 func TestBranchTooLarge(t *testing.T) {
@@ -1546,6 +1653,7 @@ int 1`)
 	pass, err := Eval(program, EvalParams{})
 	require.Error(t, err)
 	require.False(t, pass)
+	isNotPanic(t, err)
 }
 
 /*
@@ -1574,6 +1682,7 @@ txn SenderBalance
 	pass, err = Eval(program, params)
 	require.NoError(t, err)
 	require.False(t, pass)
+	isNotPanic(t, err)
 }
 */
 
@@ -2006,6 +2115,7 @@ ed25519verify`, pkStr))
 	pass, err = Eval(program, EvalParams{Txn: &txn})
 	require.False(t, pass)
 	require.Error(t, err)
+	isNotPanic(t, err)
 
 	// flip a bit and it should not pass
 	msg1 := "52fdfc072182654f163f5f0f9a621d729566c74d0aa413bf009c9800418c19cd"
@@ -2017,6 +2127,7 @@ ed25519verify`, pkStr))
 	pass1, err := Eval(program, ep1)
 	require.False(t, pass1)
 	require.NoError(t, err)
+	isNotPanic(t, err)
 }
 
 func BenchmarkEd25519Verifyx1(b *testing.B) {
