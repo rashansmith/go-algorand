@@ -27,6 +27,7 @@ import (
 	"io"
 	"math"
 	"math/big"
+	"runtime"
 	"sort"
 
 	"golang.org/x/crypto/sha3"
@@ -154,10 +155,11 @@ func (st StackType) String() string {
 // PanicError wraps a recover() catching a panic()
 type PanicError struct {
 	PanicValue interface{}
+	StackTrace string
 }
 
 func (pe PanicError) Error() string {
-	return fmt.Sprintf("panic in TEAL Eval: %v", pe.PanicValue)
+	return fmt.Sprintf("panic in TEAL Eval: %v\n%s\n", pe.PanicValue, pe.StackTrace)
 }
 
 // Eval checks to see if a transaction passes logic
@@ -165,8 +167,10 @@ func (pe PanicError) Error() string {
 func Eval(program []byte, params EvalParams) (pass bool, err error) {
 	defer func() {
 		if x := recover(); x != nil {
+			buf := make([]byte, 16*1024)
+			stlen := runtime.Stack(buf, false)
 			pass = false
-			err = PanicError{x}
+			err = PanicError{x, string(buf[:stlen])}
 		}
 	}()
 	var cx evalContext
@@ -956,57 +960,60 @@ func opDup(cx *evalContext) {
 
 func (cx *evalContext) txnFieldToStack(txn *transactions.Transaction, field uint64) (sv stackValue, err error) {
 	err = nil
-	switch field {
-	case 0:
+	switch TxnField(field) {
+	case Sender:
 		sv.Bytes = txn.Sender[:]
-	case 1:
+	case Fee:
 		sv.Uint = txn.Fee.Raw
-	case 2:
+	case FirstValid:
 		sv.Uint = uint64(txn.FirstValid)
-	case 3:
+	case FirstValidTime:
+		fmt.Print("FIXME TODO write txn FirstValidTime\n")
+		sv.Uint = 0
+	case LastValid:
 		sv.Uint = uint64(txn.LastValid)
-	case 4:
+	case Note:
 		sv.Bytes = txn.Note
-	case 5:
+	case Receiver:
 		sv.Bytes = txn.Receiver[:]
-	case 6:
+	case Amount:
 		sv.Uint = txn.Amount.Raw
-	case 7:
+	case CloseRemainderTo:
 		sv.Bytes = txn.CloseRemainderTo[:]
-	case 8:
+	case VotePK:
 		sv.Bytes = txn.VotePK[:]
-	case 9:
+	case SelectionPK:
 		sv.Bytes = txn.SelectionPK[:]
-	case 10:
+	case VoteFirst:
 		sv.Uint = uint64(txn.VoteFirst)
-	case 11:
+	case VoteLast:
 		sv.Uint = uint64(txn.VoteLast)
-	case 12:
+	case VoteKeyDilution:
 		sv.Uint = txn.VoteKeyDilution
-	case 13:
+	case Type:
 		sv.Bytes = []byte(txn.Type)
-	case 14:
+	case TypeEnum:
 		sv.Uint = uint64(txnTypeIndexes[string(txn.Type)])
-	case 15:
+	case XferAsset:
 		sv.Bytes = make([]byte, 40)
 		copy(sv.Bytes, txn.XferAsset.Creator[:])
 		binary.BigEndian.PutUint64(sv.Bytes[32:], txn.XferAsset.Index)
-	case 16:
+	case AssetAmount:
 		sv.Uint = txn.AssetAmount
-	case 17:
+	case AssetSender:
 		sv.Bytes = txn.AssetSender[:]
-	case 18:
+	case AssetReceiver:
 		sv.Bytes = txn.AssetReceiver[:]
-	case 19:
+	case AssetCloseTo:
 		sv.Bytes = txn.AssetCloseTo[:]
-	case 20:
+	case GroupIndex:
 		sv.Uint = uint64(cx.GroupIndex)
-	case 21:
+	case TxID:
 		txid := txn.ID()
 		sv.Bytes = txid[:]
-	case 22:
-		sv.Uint = cx.GroupSenders[cx.GroupIndex].MicroAlgos.Raw
-	case 23:
+	/*case 22: // SenderBalance
+	sv.Uint = cx.GroupSenders[cx.GroupIndex].MicroAlgos.Raw*/
+	case Lease:
 		sv.Bytes = txn.Lease[:]
 	default:
 		err = fmt.Errorf("invalid txn field %d", field)
@@ -1058,24 +1065,24 @@ var zeroAddress basics.Address
 func opGlobal(cx *evalContext) {
 	gindex := uint64(cx.program[cx.pc+1])
 	var sv stackValue
-	switch gindex {
-	case 0:
-		if cx.Block != nil {
-			sv.Uint = uint64(cx.Block.Round())
-		}
-	case 1:
+	switch GlobalField(gindex) {
+	/*case 0:
+	if cx.Block != nil {
+		sv.Uint = uint64(cx.Block.Round())
+	}*/
+	case MinTxnFee:
 		sv.Uint = cx.Proto.MinTxnFee
-	case 2:
+	case MinBalance:
 		sv.Uint = cx.Proto.MinBalance
-	case 3:
+	case MaxTxnLife:
 		sv.Uint = cx.Proto.MaxTxnLife
-	case 4:
-		if cx.Block != nil {
-			sv.Uint = uint64(cx.Block.BlockHeader.TimeStamp)
-		}
-	case 5:
+	/*case 4:
+	if cx.Block != nil {
+		sv.Uint = uint64(cx.Block.BlockHeader.TimeStamp)
+	}*/
+	case ZeroAddress:
 		sv.Bytes = zeroAddress[:]
-	case 6:
+	case GroupSize:
 		sv.Uint = uint64(len(cx.TxnGroup))
 	default:
 		cx.err = fmt.Errorf("invalid global[%d]", gindex)

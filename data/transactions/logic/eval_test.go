@@ -95,7 +95,7 @@ txn Receiver
 addr YYKRMERAFXMXCDWMBNR6BUUWQXDCUR53FPUGXLUYS7VNASRTJW2ENQ7BMQ
 ==
 &&
-global Round
+txn FirstValid
 int 3000
 >
 &&
@@ -118,7 +118,7 @@ func TestTLHC(t *testing.T) {
 	txn.Lsig.Args = [][]byte{secret}
 	sb := strings.Builder{}
 	block := bookkeeping.Block{}
-	block.BlockHeader.Round = 999999
+	txn.Txn.FirstValid = 999999
 	ep := EvalParams{Txn: &txn, Trace: &sb, Block: &block}
 	cost, err := Check(program, ep)
 	if err != nil {
@@ -149,7 +149,7 @@ func TestTLHC(t *testing.T) {
 	txn.Txn.Receiver = a2
 	txn.Txn.CloseRemainderTo = a2
 	sb = strings.Builder{}
-	block.BlockHeader.Round = 1
+	txn.Txn.FirstValid = 1
 	ep = EvalParams{Txn: &txn, Trace: &sb, Block: &block}
 	pass, _ = Eval(program, ep)
 	if pass {
@@ -161,7 +161,7 @@ func TestTLHC(t *testing.T) {
 	txn.Txn.Receiver = a1
 	txn.Txn.CloseRemainderTo = a1
 	sb = strings.Builder{}
-	block.BlockHeader.Round = 999999
+	txn.Txn.FirstValid = 999999
 	ep = EvalParams{Txn: &txn, Trace: &sb, Block: &block}
 	pass, err = Eval(program, ep)
 	if !pass {
@@ -807,14 +807,14 @@ int 999
 global ZeroAddress
 txn CloseRemainderTo
 ==
-&&
-global TimeStamp
-int 2069
-==
-&&
-global Round
-int 999999
-==
+//&&
+//global TimeStamp
+//int 2069
+//==
+//&&
+//global Round
+//int 999999
+//==
 &&
 global GroupSize
 int 1
@@ -894,6 +894,10 @@ txn FirstValid
 int 42
 ==
 &&
+txn FirstValidTime
+int 210
+==
+&&
 txn LastValid
 int 1066
 ==
@@ -949,10 +953,10 @@ int 3
 txn TxID
 arg 7
 ==
-&&
-txn SenderBalance
-int 4160
-==
+//&&
+//txn SenderBalance
+//int 4160
+//==
 &&
 txn Lease
 arg 8
@@ -1544,6 +1548,7 @@ int 1`)
 	require.False(t, pass)
 }
 
+/*
 func TestFetchSenderBalance(t *testing.T) {
 	t.Parallel()
 	bal := uint64(30000)
@@ -1570,6 +1575,7 @@ txn SenderBalance
 	require.NoError(t, err)
 	require.False(t, pass)
 }
+*/
 
 /*
 import random

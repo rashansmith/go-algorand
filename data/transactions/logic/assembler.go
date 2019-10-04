@@ -436,6 +436,74 @@ func assembleStore(ops *OpStream, args []string) error {
 	return nil
 }
 
+//go:generate stringer -type=TxnField
+type TxnField int
+
+const (
+	Sender TxnField = iota
+	Fee
+	FirstValid
+	FirstValidTime
+	LastValid
+	Note
+	Lease
+	Receiver
+	Amount
+	CloseRemainderTo
+	VotePK
+	SelectionPK
+	VoteFirst
+	VoteLast
+	VoteKeyDilution
+	Type
+	TypeEnum
+	XferAsset
+	AssetAmount
+	AssetSender
+	AssetReceiver
+	AssetCloseTo
+	GroupIndex
+	TxID
+	INVALID_FIELD // fence for some setup that loops from Sender..INVALID_FIELD
+)
+
+var TxnFieldNames []string
+var txnFields map[string]uint
+
+type txnFieldType struct {
+	field TxnField
+	ftype StackType
+}
+
+var txnFieldTypePairs = []txnFieldType{
+	{Sender, StackBytes},
+	{Fee, StackUint64},
+	{FirstValid, StackUint64},
+	{FirstValidTime, StackUint64},
+	{LastValid, StackUint64},
+	{Note, StackBytes},
+	{Lease, StackBytes},
+	{Receiver, StackBytes},
+	{Amount, StackUint64},
+	{CloseRemainderTo, StackBytes},
+	{VotePK, StackBytes},
+	{SelectionPK, StackBytes},
+	{VoteFirst, StackUint64},
+	{VoteLast, StackUint64},
+	{VoteKeyDilution, StackUint64},
+	{Type, StackBytes},
+	{TypeEnum, StackUint64},
+	{XferAsset, StackBytes},
+	{AssetAmount, StackUint64},
+	{AssetSender, StackBytes},
+	{AssetReceiver, StackBytes},
+	{AssetCloseTo, StackBytes},
+	{GroupIndex, StackUint64},
+	{TxID, StackBytes},
+}
+var TxnFieldTypes []StackType
+
+/*
 // TxnFieldNames are arguments to the 'txn' and 'txnById' opcodes
 var TxnFieldNames = []string{
 	"Sender", "Fee", "FirstValid", "LastValid", "Note",
@@ -444,7 +512,10 @@ var TxnFieldNames = []string{
 	"Type", "TypeEnum",
 	"XferAsset", "AssetAmount",
 	"AssetSender", "AssetReceiver", "AssetCloseTo",
-	"GroupIndex", "TxID", "SenderBalance", "Lease",
+	"GroupIndex", "TxID",
+	//"SenderBalance",
+	"Lease",
+	"FirstValidTime",
 }
 
 // TxnFieldTypes is StackBytes or StackUint64 parallel to TxnFieldNames
@@ -455,10 +526,13 @@ var TxnFieldTypes = []StackType{
 	StackBytes, StackUint64,
 	StackBytes, StackUint64,
 	StackBytes, StackBytes, StackBytes,
-	StackUint64, StackBytes, StackUint64, StackBytes,
+	StackUint64, StackBytes,
+	// StackUint64,
+	StackBytes,
+	StackUint64,
 }
 
-var txnFields map[string]uint
+*/
 
 // TxnTypeNames is the values of Txn.Type in enum order
 var TxnTypeNames = []string{
@@ -499,19 +573,48 @@ func assembleGtxn(ops *OpStream, args []string) error {
 	return ops.Gtxn(gtid, uint64(val))
 }
 
+//go:generate stringer -type=GlobalField
+type GlobalField int
+
+const (
+	MinTxnFee GlobalField = iota
+	MinBalance
+	MaxTxnLife
+	ZeroAddress
+	GroupSize
+	INVALID_GLOBAL_FIELD
+)
+
 // GlobalFieldNames are arguments to the 'global' opcode
-var GlobalFieldNames = []string{
-	"Round",
+var GlobalFieldNames []string
+
+/*
+	//"Round",
 	"MinTxnFee",
 	"MinBalance",
 	"MaxTxnLife",
-	"TimeStamp",
+	//"TimeStamp",
 	"ZeroAddress",
 	"GroupSize",
 }
+*/
+type globalFieldType struct {
+	gfield GlobalField
+	ftype  StackType
+}
+
+var globalFieldTypeList = []globalFieldType{
+	{MinTxnFee, StackUint64},
+	{MinBalance, StackUint64},
+	{MaxTxnLife, StackUint64},
+	{ZeroAddress, StackBytes},
+	{GroupSize, StackUint64},
+}
 
 // GlobalFieldTypes is StackUint64 StackBytes in parallel with GlobalFieldNames
-var GlobalFieldTypes = []StackType{
+var GlobalFieldTypes []StackType
+
+/*{
 	StackUint64,
 	StackUint64,
 	StackUint64,
@@ -519,7 +622,7 @@ var GlobalFieldTypes = []StackType{
 	StackUint64,
 	StackBytes,
 	StackUint64,
-}
+}*/
 
 var globalFields map[string]uint
 
@@ -568,11 +671,31 @@ func init() {
 	argOps["load"] = assembleLoad
 	argOps["store"] = assembleStore
 
+	TxnFieldNames = make([]string, int(INVALID_FIELD))
+	for fi := Sender; fi < INVALID_FIELD; fi++ {
+		TxnFieldNames[fi] = fi.String()
+	}
 	txnFields = make(map[string]uint)
 	for i, tfn := range TxnFieldNames {
 		txnFields[tfn] = uint(i)
 	}
 
+	TxnFieldTypes = make([]StackType, int(INVALID_FIELD))
+	for i, ft := range txnFieldTypePairs {
+		if int(ft.field) != i {
+			panic("txnFieldTypePairs disjoint with TxnField enum")
+		}
+		TxnFieldTypes[i] = ft.ftype
+	}
+
+	GlobalFieldNames = make([]string, int(INVALID_GLOBAL_FIELD))
+	for i := MinTxnFee; i < INVALID_GLOBAL_FIELD; i++ {
+		GlobalFieldNames[int(i)] = i.String()
+	}
+	GlobalFieldTypes = make([]StackType, len(GlobalFieldNames))
+	for _, ft := range globalFieldTypeList {
+		GlobalFieldTypes[int(ft.gfield)] = ft.ftype
+	}
 	globalFields = make(map[string]uint)
 	for i, gfn := range GlobalFieldNames {
 		globalFields[gfn] = uint(i)
