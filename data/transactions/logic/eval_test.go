@@ -205,6 +205,8 @@ int 0x12345678
 	require.NoError(t, err)
 }
 
+/*
+TODO: rand disabled pending better implementation
 func TestRand(t *testing.T) {
 	t.Parallel()
 	program, err := AssembleString(`rand
@@ -261,6 +263,7 @@ btoi
 	require.True(t, pass)
 	require.NoError(t, err)
 }
+*/
 
 func TestItob(t *testing.T) {
 	t.Parallel()
@@ -1342,7 +1345,6 @@ func isNotPanic(t *testing.T, err error) {
 	if err == nil {
 		return
 	}
-	t.Log(err)
 	if pe, ok := err.(PanicError); ok {
 		t.Error(pe)
 	}

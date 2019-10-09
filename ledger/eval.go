@@ -490,19 +490,26 @@ func (eval *BlockEvaluator) transaction(txn transactions.SignedTxn, ad transacti
 		}
 
 		if !txn.Lsig.Blank() {
-			// TODO: move this into some lazy evaluator for the few scripts that actually use `txn FirstValidTime` ?
-			hdr, err := eval.l.BlockHdr(basics.Round(txn.Txn.FirstValid))
-			if err != nil {
-				return fmt.Errorf("could not fetch BlockHdr for FirstValid=%d: %s", txn.Txn.FirstValid, err)
+			firstValid := basics.Round(txn.Txn.FirstValid)
+			var hdr bookkeeping.BlockHeader
+			var err error
+			if eval.block.BlockHeader.Round == firstValid {
+				hdr = eval.block.BlockHeader
+			} else {
+				// TODO: move this into some lazy evaluator for the few scripts that actually use `txn FirstValidTime` ?
+				hdr, err = eval.l.BlockHdr(firstValid)
+				if err != nil {
+					return fmt.Errorf("could not fetch BlockHdr for FirstValid=%d (current=%d): %s", txn.Txn.FirstValid, eval.block.BlockHeader.Round, err)
+				}
 			}
 			ep := logic.EvalParams{
-				Txn:                 &txn,
-				Block:               &eval.block,
-				Proto:               &eval.proto,
-				TxnGroup:            txgroup,
-				GroupIndex:          groupIndex,
-				Seed:                eval.prevHeader.Seed[:],
-				MoreSeed:            txid[:],
+				Txn:        &txn,
+				Block:      &eval.block,
+				Proto:      &eval.proto,
+				TxnGroup:   txgroup,
+				GroupIndex: groupIndex,
+				//Seed: hdr.Seed[:], // disabled until `rand` op restructured
+				//MoreSeed: txid[:],
 				FirstValidTimeStamp: uint64(hdr.TimeStamp),
 			}
 			pass, err := logic.Eval(txn.Lsig.Logic, ep)

@@ -309,7 +309,7 @@ var OpSpecs = []OpSpec{
 	{0x02, "keccak256", opKeccak256, oneBytes, oneBytes},
 	{0x03, "sha512_256", opSHA512_256, oneBytes, oneBytes},
 	{0x04, "ed25519verify", opEd25519verify, threeBytes, oneInt},
-	{0x05, "rand", opRand, nil, oneInt},
+	//{0x05, "rand", opRand, nil, oneInt},
 	{0x08, "+", opPlus, twoInts, oneInt},
 	{0x09, "-", opMinus, twoInts, oneInt},
 	{0x0a, "/", opDiv, twoInts, oneInt},
@@ -580,6 +580,8 @@ func opSHA512_256(cx *evalContext) {
 	cx.stack[last].Bytes = hash[:]
 }
 
+/*
+TODO: disabled until a better design can be found. Seed should be as little as possible under control of transaction submitter and block proposer.
 func opRand(cx *evalContext) {
 	if cx.Source == nil {
 		rng, err := NewChaCha20RNG(cx.Seed, cx.MoreSeed)
@@ -591,6 +593,7 @@ func opRand(cx *evalContext) {
 	}
 	cx.stack = append(cx.stack, stackValue{Uint: cx.Source.Uint64()})
 }
+*/
 
 func opPlus(cx *evalContext) {
 	last := len(cx.stack) - 1

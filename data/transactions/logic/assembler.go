@@ -533,35 +533,6 @@ var txnFieldTypePairs = []txnFieldType{
 // TxnFieldTypes is StackBytes or StackUint64 parallel to TxnFieldNames
 var TxnFieldTypes []StackType
 
-/*
-var TxnFieldNames = []string{
-	"Sender", "Fee", "FirstValid", "LastValid", "Note",
-	"Receiver", "Amount", "CloseRemainderTo", "VotePK", "SelectionPK",
-	"VoteFirst", "VoteLast", "VoteKeyDilution",
-	"Type", "TypeEnum",
-	"XferAsset", "AssetAmount",
-	"AssetSender", "AssetReceiver", "AssetCloseTo",
-	"GroupIndex", "TxID",
-	//"SenderBalance",
-	"Lease",
-	"FirstValidTime",
-}
-
-var TxnFieldTypes = []StackType{
-	StackBytes, StackUint64, StackUint64, StackUint64, StackBytes,
-	StackBytes, StackUint64, StackBytes, StackBytes, StackBytes,
-	StackUint64, StackUint64, StackUint64,
-	StackBytes, StackUint64,
-	StackBytes, StackUint64,
-	StackBytes, StackBytes, StackBytes,
-	StackUint64, StackBytes,
-	// StackUint64,
-	StackBytes,
-	StackUint64,
-}
-
-*/
-
 // TxnTypeNames is the values of Txn.Type in enum order
 var TxnTypeNames = []string{
 	string(protocol.UnknownTx),
@@ -623,16 +594,6 @@ const (
 // GlobalFieldNames are arguments to the 'global' opcode
 var GlobalFieldNames []string
 
-/*
-	//"Round",
-	"MinTxnFee",
-	"MinBalance",
-	"MaxTxnLife",
-	//"TimeStamp",
-	"ZeroAddress",
-	"GroupSize",
-}
-*/
 type globalFieldType struct {
 	gfield GlobalField
 	ftype  StackType
@@ -648,16 +609,6 @@ var globalFieldTypeList = []globalFieldType{
 
 // GlobalFieldTypes is StackUint64 StackBytes in parallel with GlobalFieldNames
 var GlobalFieldTypes []StackType
-
-/*{
-	StackUint64,
-	StackUint64,
-	StackUint64,
-	StackUint64,
-	StackUint64,
-	StackBytes,
-	StackUint64,
-}*/
 
 var globalFields map[string]uint
 
