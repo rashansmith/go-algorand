@@ -573,8 +573,14 @@ func (eval *BlockEvaluator) transaction(txn transactions.SignedTxn, ad transacti
 		}
 	}
 
+	var applyData transactions.ApplyData
+	err = txn.ApplyStatefulLogic(cow, &applyData)
+	if err != nil {
+		return fmt.Errorf("transaction %v: stateful logic failed to apply: %v", txn.ID(), err)
+	}
+
 	// Apply the transaction, updating the cow balances
-	applyData, err := txn.Txn.Apply(cow, spec, cow.txnCounter())
+	err = txn.Txn.Apply(cow, spec, cow.txnCounter(), &applyData)
 	if err != nil {
 		return fmt.Errorf("transaction %v: %v", txn.ID(), err)
 	}

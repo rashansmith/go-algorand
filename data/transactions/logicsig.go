@@ -32,6 +32,9 @@ type LogicSig struct {
 	// Logic signed by Sig or Msig, OR hashed to be the Address of an account.
 	Logic []byte `codec:"l"`
 
+	// StatefulLogic is evaluated at Apply time in the block evaluator
+	StatefulLogic []byte `codec:"sl"`
+
 	Sig  crypto.Signature   `codec:"sig"`
 	Msig crypto.MultisigSig `codec:"msig"`
 

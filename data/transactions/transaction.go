@@ -434,8 +434,12 @@ func (tx Transaction) EstimateEncodedSize() int {
 	return stx.GetEncodedLength()
 }
 
+func (stx SignedTxn) ApplyStatefulLogic(balances Balances, ad *ApplyData) error {
+	return nil
+}
+
 // Apply changes the balances according to this transaction.
-func (tx Transaction) Apply(balances Balances, spec SpecialAddresses, ctr uint64) (ad ApplyData, err error) {
+func (tx Transaction) Apply(balances Balances, spec SpecialAddresses, ctr uint64, ad *ApplyData) (err error) {
 	params := balances.ConsensusParams()
 
 	// move fee to pool
@@ -446,19 +450,19 @@ func (tx Transaction) Apply(balances Balances, spec SpecialAddresses, ctr uint64
 
 	switch tx.Type {
 	case protocol.PaymentTx:
-		err = tx.PaymentTxnFields.apply(tx.Header, balances, spec, &ad)
+		err = tx.PaymentTxnFields.apply(tx.Header, balances, spec, ad)
 
 	case protocol.KeyRegistrationTx:
-		err = tx.KeyregTxnFields.apply(tx.Header, balances, spec, &ad)
+		err = tx.KeyregTxnFields.apply(tx.Header, balances, spec, ad)
 
 	case protocol.AssetConfigTx:
-		err = tx.AssetConfigTxnFields.apply(tx.Header, balances, spec, &ad, ctr)
+		err = tx.AssetConfigTxnFields.apply(tx.Header, balances, spec, ad, ctr)
 
 	case protocol.AssetTransferTx:
-		err = tx.AssetTransferTxnFields.apply(tx.Header, balances, spec, &ad)
+		err = tx.AssetTransferTxnFields.apply(tx.Header, balances, spec, ad)
 
 	case protocol.AssetFreezeTx:
-		err = tx.AssetFreezeTxnFields.apply(tx.Header, balances, spec, &ad)
+		err = tx.AssetFreezeTxnFields.apply(tx.Header, balances, spec, ad)
 
 	default:
 		err = fmt.Errorf("Unknown transaction type %v", tx.Type)
