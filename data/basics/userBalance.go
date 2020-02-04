@@ -176,9 +176,18 @@ type AssetLocator struct {
 type AssetHolding struct {
 	_struct struct{} `codec:",omitempty,omitemptyarray"`
 
-	Amount uint64 `codec:"a"`
-	Frozen bool   `codec:"f"`
+	Amount     uint64 `codec:"a"`
+	Frozen     bool   `codec:"f"`
+	LocalState map[uint64]*TealValue
 }
+
+type TealType uint64
+
+const (
+	TealInvalidType TealType = 0
+	TealBytesType   TealType = 1
+	TealIntType     TealType = 2
+)
 
 // AssetParams describes the parameters of an asset.
 type AssetParams struct {
@@ -229,6 +238,73 @@ type AssetParams struct {
 	// Clawback specifies an account that is allowed to take units
 	// of this asset from any account.
 	Clawback Address `codec:"c"`
+
+	/*
+	 * Smart Assets
+	 */
+
+	GlobalState map[string]*TealValue `codec:"gs"`
+	StateSchema []StateKVDef          `codec:"sc"`
+
+	ApprovalLogicHash   [32]byte `codec:"al"`
+	AccountingLogicHash [32]byte `codec:"cl"`
+
+	StateManager Address `codec:"sm"`
+	LogicManager Address `codec:"lm"`
+}
+
+func (ap *AssetParams) Empty() bool {
+	switch {
+	case ap.Total != 0:
+		fallthrough
+	case ap.Decimals != 0:
+		fallthrough
+	case ap.DefaultFrozen != false:
+		fallthrough
+	case ap.UnitName != "":
+		fallthrough
+	case ap.AssetName != "":
+		fallthrough
+	case ap.URL != "":
+		fallthrough
+	case ap.MetadataHash != ([32]byte{}):
+		fallthrough
+	case ap.Manager != (Address{}):
+		fallthrough
+	case ap.Reserve != (Address{}):
+		fallthrough
+	case ap.Freeze != (Address{}):
+		fallthrough
+	case ap.Clawback != (Address{}):
+		fallthrough
+	case ap.GlobalState != nil:
+		fallthrough
+	case ap.StateSchema != nil:
+		fallthrough
+	case ap.ApprovalLogicHash != ([32]byte{}):
+		fallthrough
+	case ap.AccountingLogicHash != ([32]byte{}):
+		fallthrough
+	case ap.StateManager != (Address{}):
+		fallthrough
+	case ap.LogicManager != (Address{}):
+		return false
+	}
+	return true
+}
+
+type TealValue struct {
+	_struct struct{} `codec:",omitempty,omitemptyarray"`
+
+	UInt  uint64 `codec:"u"`
+	Bytes []byte `codec:"b"`
+}
+
+type StateKVDef struct {
+	_struct struct{} `codec:",omitempty,omitemptyarray"`
+
+	Key  string   `codec:"k"`
+	Type TealType `codec:"t"`
 }
 
 // MakeAccountData returns a UserToken

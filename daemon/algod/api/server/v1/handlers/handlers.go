@@ -282,7 +282,7 @@ func computeAssetIndexFromTxn(tx node.TxnWithStatus, l *data.Ledger) (aidx uint6
 		return 0
 	}
 	// Transaction must be AssetConfig transaction
-	if tx.Txn.Txn.AssetConfigTxnFields == (transactions.AssetConfigTxnFields{}) {
+	if tx.Txn.Txn.AssetConfigTxnFields.Empty() {
 		return 0
 	}
 	// Transaction must be creating an asset

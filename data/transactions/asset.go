@@ -36,6 +36,16 @@ type AssetConfigTxnFields struct {
 	AssetParams basics.AssetParams `codec:"apar"`
 }
 
+func (acfg *AssetConfigTxnFields) Empty() bool {
+	switch {
+	case acfg.ConfigAsset != 0:
+		fallthrough
+	case !acfg.AssetParams.Empty():
+		return false
+	}
+	return true
+}
+
 // AssetTransferTxnFields captures the fields used for asset transfers.
 type AssetTransferTxnFields struct {
 	_struct struct{} `codec:",omitempty,omitemptyarray"`
@@ -163,7 +173,7 @@ func (cc AssetConfigTxnFields) apply(header Header, balances Balances, spec Spec
 	record.Assets = clone(record.Assets)
 	record.AssetParams = cloneParams(record.AssetParams)
 
-	if cc.AssetParams == (basics.AssetParams{}) {
+	if cc.AssetParams.Empty() {
 		// Destroying an asset.  The creator account must hold
 		// the entire outstanding asset amount.
 		if record.Assets[cc.ConfigAsset].Amount != params.Total {

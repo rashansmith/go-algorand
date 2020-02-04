@@ -277,7 +277,7 @@ func (tx Transaction) WellFormed(spec SpecialAddresses, proto config.ConsensusPa
 		nonZeroFields[protocol.KeyRegistrationTx] = true
 	}
 
-	if tx.AssetConfigTxnFields != (AssetConfigTxnFields{}) {
+	if !tx.AssetConfigTxnFields.Empty() {
 		nonZeroFields[protocol.AssetConfigTx] = true
 	}
 
