@@ -667,7 +667,7 @@ type evalTxValidator struct {
 
 	ctx      context.Context
 	cf       context.CancelFunc
-	txgroups chan []transactions.SignedTxnWithAD
+	txgroups chan []transactions.SignedTxn
 	done     chan error
 }
 
@@ -681,14 +681,11 @@ func (validator *evalTxValidator) run() {
 			return
 		default:
 		}
-		groupNoAD := make([]transactions.SignedTxn, len(txgroup))
-		for i := range txgroup {
-			groupNoAD[i] = txgroup[i].SignedTxn
-		}
-		ctxs := verify.PrepareContexts(groupNoAD, validator.block.BlockHeader)
+
+		ctxs := verify.PrepareContexts(txgroup, validator.block.BlockHeader)
 
 		for gi, tx := range txgroup {
-			err := validateTransaction(tx.SignedTxn, validator.block, validator.proto, validator.txcache, ctxs[gi], validator.verificationPool)
+			err := validateTransaction(tx, validator.block, validator.proto, validator.txcache, ctxs[gi], validator.verificationPool)
 			if err != nil {
 				validator.done <- err
 				validator.cf()
@@ -748,7 +745,7 @@ func (l *Ledger) eval(ctx context.Context, blk bookkeeping.Block, validate bool,
 
 		txvalidator.ctx = ctx
 		txvalidator.cf = cf
-		txvalidator.txgroups = make(chan []transactions.SignedTxnWithAD, len(paysetgroups))
+		txvalidator.txgroups = make(chan []transactions.SignedTxn, len(paysetgroups))
 		txvalidator.done = make(chan error, 1)
 		go txvalidator.run()
 	}
@@ -766,8 +763,14 @@ func (l *Ledger) eval(ctx context.Context, blk bookkeeping.Block, validate bool,
 		}
 
 		if validate {
-			txvalidator.txgroups <- txgroup
+			groupNoAD := make([]transactions.SignedTxn, len(txgroup))
+			for i := range txgroup {
+				groupNoAD[i] = txgroup[i].SignedTxn
+			}
+
+			txvalidator.txgroups <- groupNoAD
 		}
+
 		err = eval.TransactionGroup(txgroup)
 		if err != nil {
 			return StateDelta{}, err
