@@ -897,9 +897,9 @@ var dryrunCmd = &cobra.Command{
 			}
 			stxns = append(stxns, txn)
 		}
-		txgroup := make([]transactions.SignedTxn, len(stxns))
+		txgroup := make([]transactions.SignedTxnWithAD, len(stxns))
 		for i, st := range stxns {
-			txgroup[i] = st
+			txgroup[i].SignedTxn = st
 		}
 		if timeStamp <= 0 {
 			timeStamp = time.Now().Unix()
@@ -909,14 +909,14 @@ var dryrunCmd = &cobra.Command{
 			if txn.Lsig.Blank() {
 				continue
 			}
-			ep := logic.EvalParams{Txn: &txn, Proto: &params}
+			ep := logic.EvalParams{Txn: &txn.SignedTxn, Proto: &params}
 			cost, err := logic.Check(txn.Lsig.Logic, ep)
 			if err != nil {
 				reportErrorf("program failed Check: %s", err)
 			}
 			sb := strings.Builder{}
 			ep = logic.EvalParams{
-				Txn:        &txn,
+				Txn:        &txn.SignedTxn,
 				Proto:      &params,
 				Trace:      &sb,
 				TxnGroup:   txgroup,

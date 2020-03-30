@@ -155,7 +155,7 @@ func (handler *TxHandler) backlogWorker() {
 			}
 
 			// enqueue the task to the verification pool.
-			wi.verifyContexts = verify.PrepareContexts(wi.unverifiedTxGroup, latestHdr)
+			wi.verifyContexts = verify.PrepareContextsNoAD(wi.unverifiedTxGroup, latestHdr)
 			handler.txVerificationPool.EnqueueBacklog(handler.ctx, handler.asyncVerifySignature, wi, nil)
 
 		case wi, ok := <-handler.postVerificationQueue:
@@ -295,7 +295,7 @@ func (handler *TxHandler) processDecoded(unverifiedTxGroup []transactions.Signed
 		logging.Base().Warnf("Could not get header for previous block %v: %v", latest, err)
 		return network.OutgoingMessage{}, true
 	}
-	tx.verifyContexts = verify.PrepareContexts(tx.unverifiedTxGroup, latestHdr)
+	tx.verifyContexts = verify.PrepareContextsNoAD(tx.unverifiedTxGroup, latestHdr)
 
 	for i, txn := range unverifiedTxGroup {
 		err := verify.TxnPool(&txn, tx.verifyContexts[i], handler.txVerificationPool)

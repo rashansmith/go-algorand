@@ -391,7 +391,7 @@ func (node *AlgorandFullNode) BroadcastSignedTxGroup(txgroup []transactions.Sign
 		return err
 	}
 
-	contexts := verify.PrepareContexts(txgroup, b)
+	contexts := verify.PrepareContextsNoAD(txgroup, b)
 	params := make([]verify.Params, len(txgroup))
 	for i, tx := range txgroup {
 		err = verify.Txn(&tx, contexts[i])

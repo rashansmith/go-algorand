@@ -41,7 +41,7 @@ var logicErrTotal = metrics.MakeCounter(metrics.MetricName{Name: "algod_ledger_l
 // on a signed transaction.
 type Context struct {
 	Params
-	Group      []transactions.SignedTxn
+	Group      []transactions.SignedTxnWithAD
 	GroupIndex int
 }
 
@@ -60,7 +60,7 @@ type Params struct {
 
 // PrepareContexts prepares verification contexts for a transaction
 // group.
-func PrepareContexts(group []transactions.SignedTxn, contextHdr bookkeeping.BlockHeader) []Context {
+func PrepareContexts(group []transactions.SignedTxnWithAD, contextHdr bookkeeping.BlockHeader) []Context {
 	ctxs := make([]Context, len(group))
 	for i := range group {
 		spec := transactions.SpecialAddresses{
@@ -79,6 +79,18 @@ func PrepareContexts(group []transactions.SignedTxn, contextHdr bookkeeping.Bloc
 	}
 
 	return ctxs
+}
+
+// PrepareContextsNoAD is a thin wrapper around PrepareContexts that should be
+// used when only a slice of transactions.SignedTxn is available (typically,
+// when we are verifying transactions outside of the block evaluator).
+func PrepareContextsNoAD(txgroup []transactions.SignedTxn, contextHdr bookkeeping.BlockHeader) []Context {
+	groupWithAD := make([]transactions.SignedTxnWithAD, len(txgroup))
+	for i := range txgroup {
+		groupWithAD[i].SignedTxn = txgroup[i]
+	}
+
+	return PrepareContexts(groupWithAD, contextHdr)
 }
 
 // TxnPool verifies that a SignedTxn has a good signature and that the underlying

@@ -681,11 +681,8 @@ func (validator *evalTxValidator) run() {
 			return
 		default:
 		}
-		groupNoAD := make([]transactions.SignedTxn, len(txgroup))
-		for i := range txgroup {
-			groupNoAD[i] = txgroup[i].SignedTxn
-		}
-		ctxs := verify.PrepareContexts(groupNoAD, validator.block.BlockHeader)
+
+		ctxs := verify.PrepareContexts(txgroup, validator.block.BlockHeader)
 
 		for gi, tx := range txgroup {
 			err := validateTransaction(tx.SignedTxn, validator.block, validator.proto, validator.txcache, ctxs[gi], validator.verificationPool)
