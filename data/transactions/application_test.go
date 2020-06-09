@@ -1387,6 +1387,42 @@ func TestAppCallApplyCreateDelete(t *testing.T) {
 	a.Equal(basics.AppParams{}, br.AppParams[appIdx])
 }
 
+func TestAppCallUnexpectedTxnError(t *testing.T) {
+	a := require.New(t)
+
+	var txnCounter uint64 = 1
+	appIdx := basics.AppIndex(txnCounter + 1)
+	creator := getRandomAddress(a)
+	sender := getRandomAddress(a)
+	ac := ApplicationCallTxnFields{
+		ApplicationID: appIdx,
+		OnCompletion:  NoOpOC,
+	}
+	h := Header{
+		Sender: sender,
+	}
+	var steva testEvaluator
+	var b testBalances
+
+	ad := &ApplyData{}
+	b.appCreators = make(map[basics.AppIndex]basics.Address)
+	b.balances = make(map[basics.Address]basics.AccountData, 1)
+
+	// creator marked in appCreators but missing AppParams
+	b.balances[creator] = basics.AccountData{}
+	b.appCreators[appIdx] = creator
+
+	// apply should fail
+	err := ac.apply(h, &b, spec, ad, txnCounter, &steva)
+	require.Error(t, err)
+
+	// err should be an UnexpectedTxnError, since it means we messed up the
+	// creators table
+	ute, ok := err.(*UnexpectedTxnError)
+	require.NotNil(t, ute)
+	require.True(t, ok)
+}
+
 func TestEncodedAppTxnAllocationBounds(t *testing.T) {
 	// ensure that all the supported protocols have value limits less or
 	// equal to their corresponding codec allocbounds

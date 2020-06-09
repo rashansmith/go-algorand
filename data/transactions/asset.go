@@ -114,7 +114,7 @@ func getParams(balances Balances, aidx basics.AssetIndex) (params basics.AssetPa
 
 	params, ok := creatorRecord.AssetParams[aidx]
 	if !ok {
-		err = fmt.Errorf("asset index %d not found in account %s", aidx, creator.String())
+		err = &UnexpectedTxnError{fmt.Sprintf("asset index %d not found in account %s", aidx, creator.String())}
 		return
 	}
 

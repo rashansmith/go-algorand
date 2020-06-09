@@ -603,6 +603,21 @@ func (tx Transaction) Apply(balances Balances, steva StateEvaluator, spec Specia
 	return
 }
 
+// UnexpectedTxnError is returned from a transaction when a violation of an
+// expected invariant occurs. Returning an error of this type indicates to the
+// caller that the error should be logged.
+type UnexpectedTxnError struct {
+	message string
+}
+
+// Error implements the error interface
+func (ute *UnexpectedTxnError) Error() string {
+	if ute == nil {
+		return "<nil>"
+	}
+	return ute.message
+}
+
 // TxnContext describes the context in which a transaction can appear
 // (pretty much, a block, but we don't have the definition of a block
 // here, since that would be a circular dependency).  This is used to

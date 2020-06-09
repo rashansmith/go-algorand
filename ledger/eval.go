@@ -635,6 +635,11 @@ func (eval *BlockEvaluator) transaction(txn transactions.SignedTxn, appEval *app
 	// Apply the transaction, updating the cow balances
 	applyData, err := txn.Txn.Apply(cow, appEval, spec, cow.txnCounter())
 	if err != nil {
+		// Particularly unexpected errors should be logged
+		ute, ok := err.(*transactions.UnexpectedTxnError)
+		if ok {
+			logging.Base().Errorf("unexpected transaction error: %v", ute)
+		}
 		return fmt.Errorf("transaction %v: %v", txid, err)
 	}
 

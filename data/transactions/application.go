@@ -173,7 +173,7 @@ func getAppParams(balances Balances, aidx basics.AppIndex) (params basics.AppPar
 	if !ok {
 		// This should never happen. If app exists then we should have
 		// found the creator successfully.
-		err = fmt.Errorf("app %d not found in account %s", aidx, creator.String())
+		err = &UnexpectedTxnError{fmt.Sprintf("app %d not found in account %s", aidx, creator.String())}
 		return
 	}
 
