@@ -62,6 +62,7 @@ type modifiedGlobalApp struct {
 }
 
 type modifiedLocalApp struct {
+	optedOut bool
 }
 
 type modifiedLocalApps map[basics.AppIndex]modifiedLocalApp

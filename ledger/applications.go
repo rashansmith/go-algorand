@@ -130,6 +130,18 @@ func MakeDebugAppLedger(balances transactions.Balances, acctWhitelist []basics.A
 	return newAppLedger(balances, acctWhitelist, appGlobalWhitelist, appIdx, globals)
 }
 
+func (al *appLedger) Round() basics.Round {
+	return al.AppTealGlobals.CurrentRound
+}
+
+func (al *appLedger) LatestTimestamp() int64 {
+	return al.AppTealGlobals.LatestTimestamp
+}
+
+func (al *appLedger) ApplicationID() basics.AppIndex {
+	return al.appIdx
+}
+
 func (al *appLedger) Balance(addr basics.Address) (res basics.MicroAlgos, err error) {
 	// Ensure requested address is on whitelist
 	if !al.addresses[addr] {
@@ -144,86 +156,6 @@ func (al *appLedger) Balance(addr basics.Address) (res basics.MicroAlgos, err er
 	}
 
 	return record.MicroAlgos, nil
-}
-
-// AppGlobalState returns the global state key/value store for the requested
-// application. The returned map must NOT be modified.
-func (al *appLedger) AppGlobalState(appIdx basics.AppIndex) (basics.TealKeyValue, error) {
-	// Allow referring to the current appIdx as 0
-	var params basics.AppParams
-	if appIdx == 0 {
-		appIdx = al.appIdx
-	}
-
-	// Ensure requested app is on whitelist
-	if !al.apps[appIdx] {
-		return nil, fmt.Errorf("cannot access global state for %d, is not for this app (%d) or in txn.ForeignApps", appIdx, al.appIdx)
-	}
-
-	// Find app creator (and check if app exists)
-	creator, ok, err := al.balances.GetAppCreator(appIdx)
-	if err != nil {
-		return nil, err
-	}
-
-	// Ensure app exists
-	if !ok {
-		return nil, fmt.Errorf("app %d does not exist", appIdx)
-	}
-
-	// Fetch creator's balance record
-	record, err := al.balances.Get(creator, false)
-	if err != nil {
-		return nil, err
-	}
-
-	// Ensure creator has expected params
-	params, ok = record.AppParams[appIdx]
-	if !ok {
-		return nil, fmt.Errorf("app %d not found in account %s", appIdx, creator.String())
-	}
-
-	// GlobalState might be nil, so make sure we don't return a nil map
-	keyValue := params.GlobalState
-	if keyValue == nil {
-		keyValue = make(basics.TealKeyValue)
-	}
-	return keyValue, nil
-}
-
-// AppLocalState returns the local state key/value store for this
-// account and application. The returned map must NOT be modified.
-func (al *appLedger) AppLocalState(addr basics.Address, appIdx basics.AppIndex) (basics.TealKeyValue, error) {
-	// Allow referring to the current appIdx as 0
-	if appIdx == 0 {
-		appIdx = al.appIdx
-	}
-
-	// Ensure requested address is on whitelist
-	if !al.addresses[addr] {
-		return nil, fmt.Errorf("cannot access local state for %s, not sender or in txn.Addresses", addr.String())
-	}
-
-	// Don't fetch with pending rewards here since we are only returning
-	// the LocalState, not the balance
-	record, err := al.balances.Get(addr, false)
-	if err != nil {
-		return nil, err
-	}
-
-	// Ensure account is opted in
-	localState, ok := record.AppLocalStates[appIdx]
-	if !ok {
-		return nil, fmt.Errorf("addr %s not opted in to app %d, cannot fetch state", addr.String(), appIdx)
-	}
-
-	// KeyValue might be nil, so make sure we don't return a nil map
-	keyValue := localState.KeyValue
-	if keyValue == nil {
-		keyValue = make(basics.TealKeyValue)
-	}
-
-	return keyValue, nil
 }
 
 func (al *appLedger) AssetHolding(addr basics.Address, assetIdx basics.AssetIndex) (holding basics.AssetHolding, err error) {
@@ -298,16 +230,4 @@ func (al *appLedger) SetGlobal(appIdx basics.AppIndex, key string, value basics.
 
 func (al *appLedger) DelGlobal(appIdx basics.AppIndex, key string) error {
 	return nil
-}
-
-func (al *appLedger) Round() basics.Round {
-	return al.AppTealGlobals.CurrentRound
-}
-
-func (al *appLedger) LatestTimestamp() int64 {
-	return al.AppTealGlobals.LatestTimestamp
-}
-
-func (al *appLedger) ApplicationID() basics.AppIndex {
-	return al.appIdx
 }

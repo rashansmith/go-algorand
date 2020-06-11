@@ -78,6 +78,34 @@ func (x *roundCowBase) lookup(addr basics.Address) (basics.AccountData, error) {
 	return x.l.LookupWithoutRewards(x.rnd, addr)
 }
 
+func (x *roundCowBase) optedIn(addr basics.Address, appIdx basics.AppIndex) (bool, error) {
+	return false, nil
+}
+
+func (x *roundCowBase) getLocal(addr basics.Address, appIdx basics.AppIndex, key string) (basics.TealValue, bool, error) {
+	return basics.TealValue{}, false, nil
+}
+
+func (x *roundCowBase) setLocal(addr basics.Address, appIdx basics.AppIndex, key string, value basics.TealValue) error {
+	return nil
+}
+
+func (x *roundCowBase) delLocal(addr basics.Address, appIdx basics.AppIndex, key string) error {
+	return nil
+}
+
+func (x *roundCowBase) getGlobal(appIdx basics.AppIndex, key string) (basics.TealValue, bool, error) {
+	return basics.TealValue{}, false, nil
+}
+
+func (x *roundCowBase) setGlobal(appIdx basics.AppIndex, key string, value basics.TealValue) error {
+	return nil
+}
+
+func (x *roundCowBase) delGlobal(appIdx basics.AppIndex, key string) error {
+	return nil
+}
+
 func (x *roundCowBase) isDup(firstValid, lastValid basics.Round, txid transactions.Txid, txl txlease) (bool, error) {
 	return x.l.isDup(x.proto, x.rnd+1, firstValid, lastValid, txid, txl)
 }

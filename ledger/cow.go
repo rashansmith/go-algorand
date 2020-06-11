@@ -39,6 +39,14 @@ type roundCowParent interface {
 	getAssetCreator(aidx basics.AssetIndex) (basics.Address, bool, error)
 	getAppCreator(aidx basics.AppIndex) (basics.Address, bool, error)
 	getCreator(cidx basics.CreatableIndex, ctype basics.CreatableType) (basics.Address, bool, error)
+
+	optedIn(addr basics.Address, appIdx basics.AppIndex) (bool, error)
+	getLocal(addr basics.Address, appIdx basics.AppIndex, key string) (basics.TealValue, bool, error)
+	setLocal(addr basics.Address, appIdx basics.AppIndex, key string, value basics.TealValue) error
+	delLocal(addr basics.Address, appIdx basics.AppIndex, key string) error
+	getGlobal(appIdx basics.AppIndex, key string) (basics.TealValue, bool, error)
+	setGlobal(appIdx basics.AppIndex, key string, value basics.TealValue) error
+	delGlobal(appIdx basics.AppIndex, key string) error
 }
 
 type roundCowState struct {
@@ -182,6 +190,46 @@ func (cb *roundCowState) child() *roundCowState {
 			hdr:        cb.mods.hdr,
 		},
 	}
+}
+
+func (cb *roundCowState) optedIn(addr basics.Address, appIdx basics.AppIndex) (bool, error) {
+	// Have we modified any local app state for this account?
+	modLocalApps, ok := cb.mods.appaccts[addr]
+	if ok {
+		// Within this account, have we modified any local apps tate for this app?
+		modLocalApp, ok := modLocalApps[appIdx]
+		if ok {
+			// If we've opted out, return false
+			if modLocalApp.optedOut {
+				return false, nil
+			}
+		}
+	}
+	return cb.lookupParent.optedIn(addr, appIdx)
+}
+
+func (x *roundCowState) getLocal(addr basics.Address, appIdx basics.AppIndex, key string) (basics.TealValue, bool, error) {
+	return basics.TealValue{}, false, nil
+}
+
+func (x *roundCowState) setLocal(addr basics.Address, appIdx basics.AppIndex, key string, value basics.TealValue) error {
+	return nil
+}
+
+func (x *roundCowState) delLocal(addr basics.Address, appIdx basics.AppIndex, key string) error {
+	return nil
+}
+
+func (x *roundCowState) getGlobal(appIdx basics.AppIndex, key string) (basics.TealValue, bool, error) {
+	return basics.TealValue{}, false, nil
+}
+
+func (x *roundCowState) setGlobal(appIdx basics.AppIndex, key string, value basics.TealValue) error {
+	return nil
+}
+
+func (x *roundCowState) delGlobal(appIdx basics.AppIndex, key string) error {
+	return nil
 }
 
 func (cb *roundCowState) commitToParent() {

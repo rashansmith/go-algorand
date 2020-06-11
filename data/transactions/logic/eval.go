@@ -103,13 +103,12 @@ type LedgerForLogic interface {
 	Balance(addr basics.Address) (basics.MicroAlgos, error)
 	Round() basics.Round
 	LatestTimestamp() int64
-	AppGlobalState(appIdx basics.AppIndex) (basics.TealKeyValue, error)
-	AppLocalState(addr basics.Address, appIdx basics.AppIndex) (basics.TealKeyValue, error)
 	AssetHolding(addr basics.Address, assetIdx basics.AssetIndex) (basics.AssetHolding, error)
 	AssetParams(addr basics.Address, assetIdx basics.AssetIndex) (basics.AssetParams, error)
-	ApplicationID() basics.AppIndex
 
+	ApplicationID() basics.AppIndex
 	OptedIn(addr basics.Address, appIdx basics.AppIndex) (bool, error)
+
 	GetLocal(addr basics.Address, appIdx basics.AppIndex, key string) (basics.TealValue, bool, error)
 	SetLocal(addr basics.Address, appIdx basics.AppIndex, key string, value basics.TealValue) error
 	DelLocal(addr basics.Address, appIdx basics.AppIndex, key string) error
