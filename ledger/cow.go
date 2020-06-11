@@ -17,6 +17,8 @@
 package ledger
 
 import (
+	"fmt"
+
 	"github.com/algorand/go-algorand/config"
 	"github.com/algorand/go-algorand/data/basics"
 	"github.com/algorand/go-algorand/data/bookkeeping"
@@ -62,10 +64,10 @@ type StateDelta struct {
 	accts map[basics.Address]accountDelta
 
 	// modified local application data (local key/value stores)
-	appaccts map[basics.Address]modifiedLocalApps
+	appaccts map[basics.Address]map[basics.AppIndex]*modifiedLocalApp
 
 	// modified global application data (incl. programs + global state)
-	apps map[basics.AppIndex]modifiedGlobalApp
+	appglob map[basics.AppIndex]*modifiedGlobalApp
 
 	// new Txids for the txtail and TxnCounter, mapped to txn.LastValid
 	Txids map[transactions.Txid]basics.Round
@@ -87,6 +89,8 @@ func makeRoundCowState(b roundCowParent, hdr bookkeeping.BlockHeader) *roundCowS
 		proto:        config.Consensus[hdr.CurrentProtocol],
 		mods: StateDelta{
 			accts:      make(map[basics.Address]accountDelta),
+			appaccts:   make(map[basics.Address]map[basics.AppIndex]*modifiedLocalApp),
+			appglob:    make(map[basics.AppIndex]*modifiedGlobalApp),
 			Txids:      make(map[transactions.Txid]basics.Round),
 			txleases:   make(map[txlease]basics.Round),
 			creatables: make(map[basics.CreatableIndex]modifiedCreatable),
@@ -184,6 +188,8 @@ func (cb *roundCowState) child() *roundCowState {
 		proto:        cb.proto,
 		mods: StateDelta{
 			accts:      make(map[basics.Address]accountDelta),
+			appaccts:   make(map[basics.Address]map[basics.AppIndex]*modifiedLocalApp),
+			appglob:    make(map[basics.AppIndex]*modifiedGlobalApp),
 			Txids:      make(map[transactions.Txid]basics.Round),
 			txleases:   make(map[txlease]basics.Round),
 			creatables: make(map[basics.CreatableIndex]modifiedCreatable),
@@ -192,43 +198,274 @@ func (cb *roundCowState) child() *roundCowState {
 	}
 }
 
-func (cb *roundCowState) optedIn(addr basics.Address, appIdx basics.AppIndex) (bool, error) {
+func (cb *roundCowState) getModLocalApp(addr basics.Address, appIdx basics.AppIndex) (*modifiedLocalApp, bool) {
 	// Have we modified any local app state for this account?
 	modLocalApps, ok := cb.mods.appaccts[addr]
 	if ok {
-		// Within this account, have we modified any local apps tate for this app?
+		// Within this account, have we modified any local app state for this app?
 		modLocalApp, ok := modLocalApps[appIdx]
 		if ok {
-			// If we've opted out, return false
-			if modLocalApp.optedOut {
-				return false, nil
-			}
+			return modLocalApp, true
+		}
+	}
+	return nil, false
+}
+
+func (cb *roundCowState) makeModLocalApp(addr basics.Address, appIdx basics.AppIndex) (*modifiedLocalApp, error) {
+	// Have we already modified any local app state for this account?
+	modLocalApps, ok := cb.mods.appaccts[addr]
+	if !ok {
+		modLocalApps = make(map[basics.AppIndex]*modifiedLocalApp, 1)
+		cb.mods.appaccts[addr] = modLocalApps
+	}
+
+	// Ensure we haven't already initialized modified state for this app
+	// for this account
+	modLocalApp, ok := modLocalApps[appIdx]
+	if ok {
+		return nil, fmt.Errorf("should not have mods for app %d on acct %v", appIdx, addr)
+	}
+
+	// Initialize a modifiedLocalApp to track any future changes
+	modLocalApp = &modifiedLocalApp{
+		kvCow: makeKeyValueCow(),
+	}
+	modLocalApps[appIdx] = modLocalApp
+
+	return modLocalApp, nil
+}
+
+func (cb *roundCowState) getModGlobalApp(appIdx basics.AppIndex) (*modifiedGlobalApp, bool) {
+	modGlobalApp, ok := cb.mods.appglob[appIdx]
+	return modGlobalApp, ok
+}
+
+func (cb *roundCowState) makeModGlobalApp(appIdx basics.AppIndex) (*modifiedGlobalApp, error) {
+	// Ensure we haven't already initialized modified state for this app
+	modGlobalApp, ok := cb.mods.appglob[appIdx]
+	if ok {
+		return nil, fmt.Errorf("should not have global mods for app %d", appIdx)
+	}
+
+	modGlobalApp = &modifiedGlobalApp{
+		kvCow: makeKeyValueCow(),
+	}
+	cb.mods.appglob[appIdx] = modGlobalApp
+
+	return modGlobalApp, nil
+}
+
+func (cb *roundCowState) optedIn(addr basics.Address, appIdx basics.AppIndex) (bool, error) {
+	// Check kv cow if present
+	modLocalApp, ok := cb.getModLocalApp(addr, appIdx)
+	if ok {
+		if modLocalApp.stateChange == optedOutLocalSC {
+			return false, nil
+		}
+		if modLocalApp.stateChange == optedInLocalSC {
+			return true, nil
 		}
 	}
 	return cb.lookupParent.optedIn(addr, appIdx)
 }
 
-func (x *roundCowState) getLocal(addr basics.Address, appIdx basics.AppIndex, key string) (basics.TealValue, bool, error) {
-	return basics.TealValue{}, false, nil
+func (cb *roundCowState) getLocal(addr basics.Address, appIdx basics.AppIndex, key string) (basics.TealValue, bool, error) {
+	// Check if we have a local kv cow
+	modLocalApp, ok := cb.getModLocalApp(addr, appIdx)
+	if ok {
+		// Ensure account has not opted out
+		if modLocalApp.stateChange == optedOutLocalSC {
+			err := fmt.Errorf("cannot get local state, %v not opted in to app %d", addr, appIdx)
+			return basics.TealValue{}, false, err
+		}
+
+		// Check kv cow
+		hitCow, tv, ok := modLocalApp.kvCow.read(key)
+		if hitCow {
+			return tv, ok, nil
+		}
+
+		// If this delta has opted us in, we should not check our
+		// parent, since we were opted out before
+		if modLocalApp.stateChange == optedInLocalSC {
+			return basics.TealValue{}, false, nil
+		}
+	}
+
+	// Fall back to parent
+	return cb.lookupParent.getLocal(addr, appIdx, key)
 }
 
-func (x *roundCowState) setLocal(addr basics.Address, appIdx basics.AppIndex, key string, value basics.TealValue) error {
+func (cb *roundCowState) setLocal(addr basics.Address, appIdx basics.AppIndex, key string, value basics.TealValue) (err error) {
+	// Ensure we have a kv cow
+	modLocalApp, ok := cb.getModLocalApp(addr, appIdx)
+	if !ok {
+		modLocalApp, err = cb.makeModLocalApp(addr, appIdx)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Ensure we have not opted out
+	if modLocalApp.stateChange == optedOutLocalSC {
+		err = fmt.Errorf("cannot write local key: acct %s is not opted in to app %d", addr, appIdx)
+		return err
+	}
+
+	// If we are opting in, don't look up backing values, and always write
+	// to the kv cow, since our parent will not have local state for us
+	if modLocalApp.stateChange == optedInLocalSC {
+		modLocalApp.kvCow.write(key, value, basics.TealValue{}, false)
+		return nil
+	}
+
+	// Look up backing value (so we don't generate a delta if writing a
+	// value equal to the backing value). By this point, we have checked
+	// that the user is not opting in to or opting out of the app, so they
+	// better already be opted in if the user is making a valid call.
+	bv, bvok, err := cb.lookupParent.getLocal(addr, appIdx, key)
+	if err != nil {
+		return err
+	}
+
+	// Write to the cow
+	modLocalApp.kvCow.write(key, value, bv, bvok)
 	return nil
 }
 
-func (x *roundCowState) delLocal(addr basics.Address, appIdx basics.AppIndex, key string) error {
+func (cb *roundCowState) delLocal(addr basics.Address, appIdx basics.AppIndex, key string) (err error) {
+	// Ensure we have a kv cow
+	modLocalApp, ok := cb.getModLocalApp(addr, appIdx)
+	if !ok {
+		modLocalApp, err = cb.makeModLocalApp(addr, appIdx)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Ensure we have not opted out
+	if modLocalApp.stateChange == optedOutLocalSC {
+		err = fmt.Errorf("cannot delete local key: acct %s is not opted in to app %d", addr, appIdx)
+		return err
+	}
+
+	// If we are opting in, don't look up backing values, and always write
+	// to the kv cow, since our parent will not have local state for us
+	if modLocalApp.stateChange == optedInLocalSC {
+		modLocalApp.kvCow.del(key, false)
+		return nil
+	}
+
+	// Look up if backing value existed (so we don't generate a delta if
+	// there was no entry for the key before)
+	_, bvok, err := cb.lookupParent.getLocal(addr, appIdx, key)
+	if err != nil {
+		return err
+	}
+
+	// Write to the cow
+	modLocalApp.kvCow.del(key, bvok)
 	return nil
 }
 
-func (x *roundCowState) getGlobal(appIdx basics.AppIndex, key string) (basics.TealValue, bool, error) {
-	return basics.TealValue{}, false, nil
+func (cb *roundCowState) getGlobal(appIdx basics.AppIndex, key string) (basics.TealValue, bool, error) {
+	// Check if we have global modified app info/kv cow
+	modGlobalApp, ok := cb.getModGlobalApp(appIdx)
+	if ok {
+		// Ensure app has not been deleted
+		if modGlobalApp.stateChange == deletedGlobalSC {
+			err := fmt.Errorf("cannot read global key: app %d does not exist", appIdx)
+			return basics.TealValue{}, false, err
+		}
+
+		// Check kv cow
+		hitCow, tv, ok := modGlobalApp.kvCow.read(key)
+		if hitCow {
+			return tv, ok, nil
+		}
+
+		// If this delta is creating the app, we should not check our
+		// parent if the key is missing from the kv cow, since the
+		// app did not exist before
+		if modGlobalApp.stateChange == createdGlobalSC {
+			return basics.TealValue{}, false, nil
+		}
+	}
+
+	// Fall back to parent
+	return cb.lookupParent.getGlobal(appIdx, key)
 }
 
-func (x *roundCowState) setGlobal(appIdx basics.AppIndex, key string, value basics.TealValue) error {
+func (cb *roundCowState) setGlobal(appIdx basics.AppIndex, key string, value basics.TealValue) (err error) {
+	// Ensure we have a kv cow
+	modGlobalApp, ok := cb.getModGlobalApp(appIdx)
+	if !ok {
+		modGlobalApp, err = cb.makeModGlobalApp(appIdx)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Ensure app has not been deleted
+	if modGlobalApp.stateChange == deletedGlobalSC {
+		err = fmt.Errorf("cannot write global key: app %d does not exist", appIdx)
+		return err
+	}
+
+	// If app is being created, don't look up backing values, and always
+	// write to the kv cow, since the app will not exist in our parent
+	if modGlobalApp.stateChange == createdGlobalSC {
+		modGlobalApp.kvCow.write(key, value, basics.TealValue{}, false)
+		return nil
+	}
+
+	// Look up backing value (so we don't generate a delta if writing a
+	// value equal to the backing value). By this point, we have checked
+	// that the app is not being created or deleted in this cow, so it
+	// better exist if the user is making a valid call.
+	bv, bvok, err := cb.lookupParent.getGlobal(appIdx, key)
+	if err != nil {
+		return err
+	}
+
+	// Write to the cow
+	modGlobalApp.kvCow.write(key, value, bv, bvok)
 	return nil
 }
 
-func (x *roundCowState) delGlobal(appIdx basics.AppIndex, key string) error {
+func (cb *roundCowState) delGlobal(appIdx basics.AppIndex, key string) (err error) {
+	// Ensure we have a kv cow
+	modGlobalApp, ok := cb.getModGlobalApp(appIdx)
+	if !ok {
+		modGlobalApp, err = cb.makeModGlobalApp(appIdx)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Ensure app has not been deleted
+	if modGlobalApp.stateChange == deletedGlobalSC {
+		err = fmt.Errorf("cannot delete global key: app %d does not exist", appIdx)
+		return err
+	}
+
+	// If app is being created, don't look up whether the key exists in
+	// parent, and delete any entry for this key in the kv delta (the
+	// parent will not have an entry, since the app didn't exist)
+	if modGlobalApp.stateChange == createdGlobalSC {
+		modGlobalApp.kvCow.del(key, false)
+		return nil
+	}
+
+	// Look up if backing value existed (so we don't generate a delta if
+	// there was no entry for the key before)
+	_, bvok, err := cb.lookupParent.getGlobal(appIdx, key)
+	if err != nil {
+		return err
+	}
+
+	// Write to the cow
+	modGlobalApp.kvCow.del(key, bvok)
 	return nil
 }
 
@@ -244,6 +481,8 @@ func (cb *roundCowState) commitToParent() {
 			cb.commitParent.mods.accts[addr] = delta
 		}
 	}
+
+	// TODO(app refactor) merge app local/global deltas
 
 	for txid, lv := range cb.mods.Txids {
 		cb.commitParent.mods.Txids[txid] = lv
