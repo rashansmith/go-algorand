@@ -53,6 +53,12 @@ type StateDelta struct {
 	// modified accounts
 	accts map[basics.Address]accountDelta
 
+	// modified local application data (local key/value stores)
+	appaccts map[basics.Address]modifiedLocalApps
+
+	// modified global application data (incl. programs + global state)
+	apps map[basics.AppIndex]modifiedGlobalApp
+
 	// new Txids for the txtail and TxnCounter, mapped to txn.LastValid
 	Txids map[transactions.Txid]basics.Round
 

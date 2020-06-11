@@ -272,6 +272,34 @@ func (al *appLedger) AssetParams(addr basics.Address, assetIdx basics.AssetIndex
 	return params, nil
 }
 
+func (al *appLedger) OptedIn(addr basics.Address, appIdx basics.AppIndex) (bool, error) {
+	return false, nil
+}
+
+func (al *appLedger) GetLocal(addr basics.Address, appIdx basics.AppIndex, key string) (basics.TealValue, bool, error) {
+	return basics.TealValue{}, false, nil
+}
+
+func (al *appLedger) SetLocal(addr basics.Address, appIdx basics.AppIndex, key string, value basics.TealValue) error {
+	return nil
+}
+
+func (al *appLedger) DelLocal(addr basics.Address, appIdx basics.AppIndex, key string) error {
+	return nil
+}
+
+func (al *appLedger) GetGlobal(appIdx basics.AppIndex, key string) (basics.TealValue, bool, error) {
+	return basics.TealValue{}, false, nil
+}
+
+func (al *appLedger) SetGlobal(appIdx basics.AppIndex, key string, value basics.TealValue) error {
+	return nil
+}
+
+func (al *appLedger) DelGlobal(appIdx basics.AppIndex, key string) error {
+	return nil
+}
+
 func (al *appLedger) Round() basics.Round {
 	return al.AppTealGlobals.CurrentRound
 }

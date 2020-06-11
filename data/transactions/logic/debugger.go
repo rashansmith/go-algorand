@@ -208,20 +208,23 @@ func (cx *evalContext) refreshDebugState() *DebugState {
 	ds.Stack = stack
 	ds.Scratch = scratch
 
-	if (cx.runModeFlags & runModeApplication) != 0 {
-		if cx.globalStateCow != nil {
-			for k, v := range cx.globalStateCow.delta {
-				ds.GlobalStateChanges[k] = v
+	/*
+		TODO(maxj) fix post app ledger refactor
+		if (cx.runModeFlags & runModeApplication) != 0 {
+			if cx.globalStateCow != nil {
+				for k, v := range cx.globalStateCow.delta {
+					ds.GlobalStateChanges[k] = v
+				}
+			}
+			for addr, cow := range cx.localStateCows {
+				delta := make(basics.StateDelta, len(cow.cow.delta))
+				for k, v := range cow.cow.delta {
+					delta[k] = v
+				}
+				ds.LocalStateChanges[addr] = delta
 			}
 		}
-		for addr, cow := range cx.localStateCows {
-			delta := make(basics.StateDelta, len(cow.cow.delta))
-			for k, v := range cow.cow.delta {
-				delta[k] = v
-			}
-			ds.LocalStateChanges[addr] = delta
-		}
-	}
+	*/
 
 	return ds
 }

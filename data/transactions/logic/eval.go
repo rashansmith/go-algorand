@@ -108,6 +108,15 @@ type LedgerForLogic interface {
 	AssetHolding(addr basics.Address, assetIdx basics.AssetIndex) (basics.AssetHolding, error)
 	AssetParams(addr basics.Address, assetIdx basics.AssetIndex) (basics.AssetParams, error)
 	ApplicationID() basics.AppIndex
+
+	OptedIn(addr basics.Address, appIdx basics.AppIndex) (bool, error)
+	GetLocal(addr basics.Address, appIdx basics.AppIndex, key string) (basics.TealValue, bool, error)
+	SetLocal(addr basics.Address, appIdx basics.AppIndex, key string, value basics.TealValue) error
+	DelLocal(addr basics.Address, appIdx basics.AppIndex, key string) error
+
+	GetGlobal(appIdx basics.AppIndex, key string) (basics.TealValue, bool, error)
+	SetGlobal(appIdx basics.AppIndex, key string, value basics.TealValue) error
+	DelGlobal(appIdx basics.AppIndex, key string) error
 }
 
 // EvalParams contains data that comes into condition evaluation.
@@ -180,11 +189,6 @@ type ckey struct {
 	addr basics.Address
 }
 
-type indexedCow struct {
-	accountIdx uint64
-	cow        *keyValueCow
-}
-
 type evalContext struct {
 	EvalParams
 
@@ -207,12 +211,7 @@ type evalContext struct {
 
 	programHashCached crypto.Digest
 	txidCache         map[int]transactions.Txid
-
-	globalStateCow       *keyValueCow
-	readOnlyGlobalStates map[uint64]basics.TealKeyValue
-	localStateCows       map[basics.Address]*indexedCow
-	readOnlyLocalStates  map[ckey]basics.TealKeyValue
-	appEvalDelta         basics.EvalDelta
+	appEvalDelta      basics.EvalDelta
 
 	// Stores state & disassembly for the optional debugger
 	debugState DebugState
@@ -274,32 +273,8 @@ func EvalStateful(program []byte, params EvalParams) (pass bool, delta basics.Ev
 	cx.EvalParams = params
 	cx.runModeFlags = runModeApplication
 
-	cx.appEvalDelta = basics.EvalDelta{
-		GlobalDelta: make(basics.StateDelta),
-		LocalDeltas: make(map[uint64]basics.StateDelta, len(params.Txn.Txn.Accounts)+1),
-	}
-
-	// Allocate global delta cow lazily to avoid ledger lookups
-	cx.globalStateCow = nil
-
-	// Stores read-only global key/value stores keyed off app
-	cx.readOnlyGlobalStates = make(map[uint64]basics.TealKeyValue)
-
-	// Stores state cows for each modified LocalState for this app
-	cx.localStateCows = make(map[basics.Address]*indexedCow)
-
-	// Stores read-only local key/value stores keyed off of <addr, app>
-	cx.readOnlyLocalStates = make(map[ckey]basics.TealKeyValue)
-
 	// Evaluate the program
 	pass, err = eval(program, &cx)
-
-	// Fill in state deltas
-	for _, idxCow := range cx.localStateCows {
-		if len(idxCow.cow.delta) > 0 {
-			cx.appEvalDelta.LocalDeltas[idxCow.accountIdx] = idxCow.cow.delta
-		}
-	}
 
 	return pass, cx.appEvalDelta, err
 }
@@ -1633,167 +1608,60 @@ func opAppCheckOptedIn(cx *evalContext) {
 		return
 	}
 
-	_, err = cx.Ledger.AppLocalState(addr, basics.AppIndex(appID))
+	optedIn, err := cx.Ledger.OptedIn(addr, basics.AppIndex(appID))
 	if err != nil {
-		cx.stack[prev].Uint = 0
-	} else {
+		cx.err = err
+		return
+	}
+
+	if optedIn {
 		cx.stack[prev].Uint = 1
+	} else {
+		cx.stack[prev].Uint = 0
 	}
 
 	cx.stack = cx.stack[:last]
 }
 
-func (cx *evalContext) getReadOnlyLocalState(appID uint64, accountIdx uint64) (basics.TealKeyValue, error) {
+func (cx *evalContext) appReadLocalKey(appIdx uint64, accountIdx uint64, key string) (basics.TealValue, bool, error) {
 	// Convert the account offset to an address
 	addr, err := cx.Txn.Txn.AddressByIndex(accountIdx, cx.Txn.Txn.Sender)
-	if err != nil {
-		return nil, err
-	}
-
-	kvIdx := ckey{appID, addr}
-	localKV, ok := cx.readOnlyLocalStates[kvIdx]
-	if !ok {
-		var err error
-		localKV, err = cx.Ledger.AppLocalState(addr, basics.AppIndex(appID))
-		if err != nil {
-			return nil, fmt.Errorf("failed to fetch app local state for acct %v, app %d: %v", addr, appID, err)
-		}
-		cx.readOnlyLocalStates[kvIdx] = localKV
-	}
-	return localKV, nil
-}
-
-func (cx *evalContext) getLocalStateCow(accountIdx uint64) (*keyValueCow, error) {
-	// Convert the account offset to an address
-	addr, err := cx.Txn.Txn.AddressByIndex(accountIdx, cx.Txn.Txn.Sender)
-	if err != nil {
-		return nil, err
-	}
-
-	// We key localStateCows by address and not accountIdx, because
-	// multiple accountIdxs may refer to the same address
-	idxCow, ok := cx.localStateCows[addr]
-	if !ok {
-		// No cached cow for this address. Make one.
-		localKV, err := cx.Ledger.AppLocalState(addr, basics.AppIndex(cx.Txn.Txn.ApplicationID))
-		if err != nil {
-			return nil, fmt.Errorf("failed to fetch app local state for acct %v: %v", addr, err)
-		}
-
-		localDelta := make(basics.StateDelta)
-		kvCow := makeKeyValueCow(localKV, localDelta)
-		idxCow = &indexedCow{accountIdx, kvCow}
-		cx.localStateCows[addr] = idxCow
-	}
-	return idxCow.cow, nil
-}
-
-func (cx *evalContext) appReadLocalKey(appID uint64, accountIdx uint64, key string) (basics.TealValue, bool, error) {
-	// If this is for the application mentioned in the transaction header,
-	// return the result from a LocalState cow, since we may have written
-	// to it
-	if appID == 0 || appID == uint64(cx.Ledger.ApplicationID()) {
-		kvCow, err := cx.getLocalStateCow(accountIdx)
-		if err != nil {
-			return basics.TealValue{}, false, err
-		}
-		tv, ok := kvCow.read(key)
-		return tv, ok, nil
-	}
-
-	// Otherwise, the state is read only, so return from the read only cache
-	kv, err := cx.getReadOnlyLocalState(appID, accountIdx)
 	if err != nil {
 		return basics.TealValue{}, false, err
 	}
-	tv, ok := kv[key]
-	return tv, ok, nil
+	return cx.Ledger.GetLocal(addr, basics.AppIndex(appIdx), key)
 }
 
 // appWriteLocalKey writes value to local key/value cow
 func (cx *evalContext) appWriteLocalKey(accountIdx uint64, key string, tv basics.TealValue) error {
-	kvCow, err := cx.getLocalStateCow(accountIdx)
+	// Convert the account offset to an address
+	addr, err := cx.Txn.Txn.AddressByIndex(accountIdx, cx.Txn.Txn.Sender)
 	if err != nil {
 		return err
 	}
-	kvCow.write(key, tv)
-	return nil
+	return cx.Ledger.SetLocal(addr, cx.Ledger.ApplicationID(), key, tv)
 }
 
 // appDeleteLocalKey deletes a value from the key/value cow
 func (cx *evalContext) appDeleteLocalKey(accountIdx uint64, key string) error {
-	kvCow, err := cx.getLocalStateCow(accountIdx)
+	// Convert the account offset to an address
+	addr, err := cx.Txn.Txn.AddressByIndex(accountIdx, cx.Txn.Txn.Sender)
 	if err != nil {
 		return err
 	}
-	kvCow.del(key)
-	return nil
+	return cx.Ledger.DelLocal(addr, cx.Ledger.ApplicationID(), key)
 }
 
-func (cx *evalContext) getReadOnlyGlobalState(appID uint64) (basics.TealKeyValue, error) {
-	globalKV, ok := cx.readOnlyGlobalStates[appID]
-	if !ok {
-		var err error
-		globalKV, err = cx.Ledger.AppGlobalState(basics.AppIndex(appID))
-		if err != nil {
-			return nil, fmt.Errorf("failed to fetch global state for app %d: %v", appID, err)
-		}
-		cx.readOnlyGlobalStates[appID] = globalKV
-	}
-	return globalKV, nil
+func (cx *evalContext) appReadGlobalKey(appIdx uint64, key string) (basics.TealValue, bool, error) {
+	return cx.Ledger.GetGlobal(basics.AppIndex(appIdx), key)
 }
 
-func (cx *evalContext) getGlobalStateCow() (*keyValueCow, error) {
-	if cx.globalStateCow == nil {
-		globalKV, err := cx.Ledger.AppGlobalState(cx.Txn.Txn.ApplicationID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to fetch global state: %v", err)
-		}
-		cx.globalStateCow = makeKeyValueCow(globalKV, cx.appEvalDelta.GlobalDelta)
-	}
-	return cx.globalStateCow, nil
-}
-
-func (cx *evalContext) appReadGlobalKey(appID uint64, key string) (basics.TealValue, bool, error) {
-	// If this is for the application mentioned in the transaction header,
-	// return the result from a GlobalState cow, since we may have written
-	// to it
-	if appID == 0 || appID == uint64(cx.Ledger.ApplicationID()) {
-		kvCow, err := cx.getGlobalStateCow()
-		if err != nil {
-			return basics.TealValue{}, false, err
-		}
-		tv, ok := kvCow.read(key)
-		return tv, ok, nil
-	}
-
-	// Otherwise, the state is read only, so return from the read only cache
-	kv, err := cx.getReadOnlyGlobalState(appID)
-	if err != nil {
-		return basics.TealValue{}, false, err
-	}
-	tv, ok := kv[key]
-	return tv, ok, nil
-}
-
-// appWriteGlobalKey adds value to StateDelta
 func (cx *evalContext) appWriteGlobalKey(key string, tv basics.TealValue) error {
-	kvCow, err := cx.getGlobalStateCow()
-	if err != nil {
-		return err
-	}
-	kvCow.write(key, tv)
-	return nil
+	return cx.Ledger.SetGlobal(cx.Ledger.ApplicationID(), key, tv)
 }
 
-// appDeleteGlobalKey deletes a value from the cache and adds it to StateDelta
 func (cx *evalContext) appDeleteGlobalKey(key string) error {
-	kvCow, err := cx.getGlobalStateCow()
-	if err != nil {
-		return err
-	}
-	kvCow.del(key)
-	return nil
+	return cx.Ledger.DelGlobal(cx.Ledger.ApplicationID(), key)
 }
 
 func opAppGetLocalState(cx *evalContext) {

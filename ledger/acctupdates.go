@@ -58,6 +58,14 @@ type modifiedCreatable struct {
 	ndeltas int
 }
 
+type modifiedGlobalApp struct {
+}
+
+type modifiedLocalApp struct {
+}
+
+type modifiedLocalApps map[basics.AppIndex]modifiedLocalApp
+
 type accountUpdates struct {
 	// Connection to the database.
 	dbs dbPair
