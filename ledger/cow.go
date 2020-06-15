@@ -287,7 +287,7 @@ func (cb *roundCowState) mergeGlobalAppDelta(aidx basics.AppIndex, cga *modified
 
 func (cb *roundCowState) mergeLocalAppDelta(addr basics.Address, aidx basics.AppIndex, cla *modifiedLocalApp) {
 	// Grab delta reference for this addr/aidx local state
-	pla := cb.commitParent.ensureModLocalApp(addr, aidx)
+	pla := cb.ensureModLocalApp(addr, aidx)
 
 	// parent optOut -> child optOut is an invalid state, because even if
 	// child went through optIn -> optOut, they should have checked that
@@ -312,6 +312,15 @@ func (cb *roundCowState) mergeLocalAppDelta(addr basics.Address, aidx basics.App
 			panic(fmt.Sprintf("unable to merge opted out app to parent: %v", err))
 		}
 	case optedInLocalSC:
+		if pla.stateChange == optedInLocalSC {
+			// If parent also opted in, then we must first opt out in parent to let
+			// the child's opt in take precedence
+			err := cb.optOut(addr, aidx)
+			if err != nil {
+				panic(fmt.Sprintf("failed to opt out in preparation of child opt in: %v", err))
+			}
+		}
+
 		// If the child opted in, replay that event
 		err := cb.optIn(addr, aidx)
 		if err != nil {
