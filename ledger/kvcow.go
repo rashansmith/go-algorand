@@ -72,12 +72,3 @@ func (kvc *keyValueCow) del(key string, bvok bool) {
 		delete(kvc.delta, key)
 	}
 }
-
-func (kvc *keyValueCow) mergeChild(ckvc *keyValueCow) {
-	// TODO if both kvc and ckvc are compact with respect to their backing
-	// store (e.g. no "a: write foo" if the base map already has "a = foo")
-	// show that this algorithm is correct
-	for key, delta := range ckvc.delta {
-		kvc.delta[key] = delta
-	}
-}
