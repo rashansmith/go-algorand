@@ -106,6 +106,22 @@ func (x *roundCowBase) delGlobal(appIdx basics.AppIndex, key string) error {
 	return nil
 }
 
+func (x *roundCowBase) createApp(appIdx basics.AppIndex, creator basics.Address) error {
+	return nil
+}
+
+func (x *roundCowBase) deleteApp(appIdx basics.AppIndex) error {
+	return nil
+}
+
+func (x *roundCowBase) optIn(addr basics.Address, appIdx basics.AppIndex) error {
+	return nil
+}
+
+func (x *roundCowBase) optOut(addr basics.Address, appIdx basics.AppIndex) error {
+	return nil
+}
+
 func (x *roundCowBase) isDup(firstValid, lastValid basics.Round, txid transactions.Txid, txl txlease) (bool, error) {
 	return x.l.isDup(x.proto, x.rnd+1, firstValid, lastValid, txid, txl)
 }
@@ -147,7 +163,8 @@ func (cs *roundCowState) PutWithCreatables(record basics.BalanceRecord, newCreat
 	if err != nil {
 		return err
 	}
-	cs.put(record.Addr, olddata, record.AccountData, newCreatables, deletedCreatables)
+	cs.put(record.Addr, olddata, record.AccountData)
+	cs.putCreatables(record.Addr, newCreatables, deletedCreatables)
 	return nil
 }
 
@@ -174,7 +191,7 @@ func (cs *roundCowState) Move(from basics.Address, to basics.Address, amt basics
 	if overflowed {
 		return fmt.Errorf("overspend (account %v, data %+v, tried to spend %v)", from, fromBal, amt)
 	}
-	cs.put(from, fromBal, fromBalNew, nil, nil)
+	cs.put(from, fromBal, fromBalNew)
 
 	toBal, err := cs.lookup(to)
 	if err != nil {
@@ -195,7 +212,7 @@ func (cs *roundCowState) Move(from basics.Address, to basics.Address, amt basics
 	if overflowed {
 		return fmt.Errorf("balance overflow (account %v, data %+v, was going to receive %v)", to, toBal, amt)
 	}
-	cs.put(to, toBal, toBalNew, nil, nil)
+	cs.put(to, toBal, toBalNew)
 
 	return nil
 }

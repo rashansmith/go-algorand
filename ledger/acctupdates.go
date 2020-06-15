@@ -58,32 +58,6 @@ type modifiedCreatable struct {
 	ndeltas int
 }
 
-type globalAppStateChange uint64
-
-const (
-	noGlobalSC      globalAppStateChange = 0
-	createdGlobalSC globalAppStateChange = 1
-	deletedGlobalSC globalAppStateChange = 2
-)
-
-type modifiedGlobalApp struct {
-	stateChange globalAppStateChange
-	kvCow       keyValueCow
-}
-
-type localAppStateChange uint64
-
-const (
-	noLocalSC       localAppStateChange = 0
-	optedInLocalSC  localAppStateChange = 1
-	optedOutLocalSC localAppStateChange = 2
-)
-
-type modifiedLocalApp struct {
-	stateChange localAppStateChange
-	kvCow       keyValueCow
-}
-
 type accountUpdates struct {
 	// Connection to the database.
 	dbs dbPair

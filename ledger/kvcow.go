@@ -31,6 +31,10 @@ func makeKeyValueCow() (kvc keyValueCow) {
 	return
 }
 
+func (kvc *keyValueCow) clear() {
+	kvc.delta = make(basics.StateDelta)
+}
+
 func (kvc *keyValueCow) read(key string) (hitCow bool, value basics.TealValue, ok bool) {
 	// If the value for the key has been modified in the delta,
 	// then return the modified value.
@@ -66,5 +70,14 @@ func (kvc *keyValueCow) del(key string, bvok bool) {
 		// Since the key didn't exist in the underlying key/value,
 		// don't include a delta entry for its deletion.
 		delete(kvc.delta, key)
+	}
+}
+
+func (kvc *keyValueCow) mergeChild(ckvc *keyValueCow) {
+	// TODO if both kvc and ckvc are compact with respect to their backing
+	// store (e.g. no "a: write foo" if the base map already has "a = foo")
+	// show that this algorithm is correct
+	for key, delta := range ckvc.delta {
+		kvc.delta[key] = delta
 	}
 }
