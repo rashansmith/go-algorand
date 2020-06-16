@@ -285,6 +285,51 @@ func (cb *roundCowState) mergeGlobalAppDelta(aidx basics.AppIndex, cga *modified
 	}
 }
 
+/*
+The parent modLocalApp can be in one of three states:
+	- noLocalSC (indicating no state change)
+	- optInLocalSC (indicating we need to opt in)
+	- optOutLocalSC (indicating we need to opt out)
+
+The child modLocalApp can also be in one of those three states. There are
+therefore nine possible transitions, some of which are valid, and some of which
+are invalid.
+
+We use (stateOne, stateTwo) to represent a transition from the parent in
+stateOne to the child in stateTwo.
+
+(noLocalSC, noLocalSC)
+- We must have been opted in already: just apply k/v deltas
+
+(noLocalSC, optInLocalSC)
+- We must have been opted out already: opt in and apply k/v deltas to blank state
+
+(noLocalSC, optOutLocalSC)
+- We must have been opted in already: opt out (len k/v deltas must be zero)
+
+(optInLocalSC, noLocalSC)
+- Parent opted us in: apply k/v deltas to parent state
+
+(optInLocalSC, optInLocalSC)
+- Child must have opted out at some point and opted in again:
+	1. Opt out in parent (must succeed), since child must have opted out at
+	   some point and this is a convenient way to reset state
+	2. Opt in in parent and apply k/v deltas to now blank state
+
+(optInLocalSC, optOutLocalSC)
+- Opt out (len k/v deltas must be zero)
+
+(optOutLocalSC, noLocalSC)
+- Invalid state. Why did the child produce a delta?
+
+(optOutLocalSC, optInLocalSC)
+- Opt in in parent. Apply deltas.
+
+(optOutLocalSC, optOutLocalSC)
+- Invalid state. Why did the child produce a delta?
+
+*/
+
 func (cb *roundCowState) mergeLocalAppDelta(addr basics.Address, aidx basics.AppIndex, cla *modifiedLocalApp) {
 	// Grab delta reference for this addr/aidx local state
 	pla := cb.ensureModLocalApp(addr, aidx)
@@ -296,9 +341,12 @@ func (cb *roundCowState) mergeLocalAppDelta(addr basics.Address, aidx basics.App
 		panic("parent cow and child cow both opted out")
 	}
 
-	// parent optIn -> child optIn is a potentially valid state. If parent
-	// state == optIn, and then in child cow, user does optOut followed by
-	// optIn, child will be in optIn state.
+	// parent optOut -> child noOp is an invalid state, because the child
+	// should not have produced a delta at all
+	if pla.stateChange == optedOutLocalSC && cla.stateChange == noLocalSC {
+		panic("child cow produced noop delta after parent opted out")
+	}
+
 	switch cla.stateChange {
 	case optedOutLocalSC:
 		// Sanity check: opting out, child should have no kv delta
