@@ -424,11 +424,24 @@ func (cb *roundCowState) commitToParent() {
 	for txid, lv := range cb.mods.Txids {
 		cb.commitParent.mods.Txids[txid] = lv
 	}
+
 	for txl, expires := range cb.mods.txleases {
 		cb.commitParent.mods.txleases[txl] = expires
 	}
-	for cidx, delta := range cb.mods.creatables {
-		cb.commitParent.mods.creatables[cidx] = delta
+
+	for cidx, cdelta := range cb.mods.creatables {
+		pdelta, ok := cb.commitParent.mods.creatables[cidx]
+		if ok {
+			// If the parent created the creatable, and the child deleted it,
+			// then we can avoid creating a delta entirely.
+			if pdelta.created && !cdelta.created {
+				delete(cb.commitParent.mods.creatables, cidx)
+				continue
+			}
+		}
+
+		// Otherwise, all creatable modifications should propogate to the parent
+		cb.commitParent.mods.creatables[cidx] = cdelta
 	}
 }
 
