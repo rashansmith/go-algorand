@@ -86,40 +86,8 @@ func (x *roundCowBase) getLocal(addr basics.Address, appIdx basics.AppIndex, key
 	return basics.TealValue{}, false, nil
 }
 
-func (x *roundCowBase) setLocal(addr basics.Address, appIdx basics.AppIndex, key string, value basics.TealValue) error {
-	return nil
-}
-
-func (x *roundCowBase) delLocal(addr basics.Address, appIdx basics.AppIndex, key string) error {
-	return nil
-}
-
 func (x *roundCowBase) getGlobal(appIdx basics.AppIndex, key string) (basics.TealValue, bool, error) {
 	return basics.TealValue{}, false, nil
-}
-
-func (x *roundCowBase) setGlobal(appIdx basics.AppIndex, key string, value basics.TealValue) error {
-	return nil
-}
-
-func (x *roundCowBase) delGlobal(appIdx basics.AppIndex, key string) error {
-	return nil
-}
-
-func (x *roundCowBase) createApp(appIdx basics.AppIndex, creator basics.Address) error {
-	return nil
-}
-
-func (x *roundCowBase) deleteApp(appIdx basics.AppIndex) error {
-	return nil
-}
-
-func (x *roundCowBase) optIn(addr basics.Address, appIdx basics.AppIndex) error {
-	return nil
-}
-
-func (x *roundCowBase) optOut(addr basics.Address, appIdx basics.AppIndex) error {
-	return nil
 }
 
 func (x *roundCowBase) isDup(firstValid, lastValid basics.Round, txid transactions.Txid, txl txlease) (bool, error) {

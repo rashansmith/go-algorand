@@ -41,20 +41,9 @@ type roundCowParent interface {
 	getAssetCreator(aidx basics.AssetIndex) (basics.Address, bool, error)
 	getAppCreator(aidx basics.AppIndex) (basics.Address, bool, error)
 	getCreator(cidx basics.CreatableIndex, ctype basics.CreatableType) (basics.Address, bool, error)
-
-	getLocal(addr basics.Address, appIdx basics.AppIndex, key string) (basics.TealValue, bool, error)
-	setLocal(addr basics.Address, appIdx basics.AppIndex, key string, value basics.TealValue) error
-	delLocal(addr basics.Address, appIdx basics.AppIndex, key string) error
-	getGlobal(appIdx basics.AppIndex, key string) (basics.TealValue, bool, error)
-	setGlobal(appIdx basics.AppIndex, key string, value basics.TealValue) error
-	delGlobal(appIdx basics.AppIndex, key string) error
-
-	createApp(appIdx basics.AppIndex, creator basics.Address) error
-	deleteApp(appIdx basics.AppIndex) error
-
-	optIn(addr basics.Address, appIdx basics.AppIndex) error
-	optOut(addr basics.Address, appIdx basics.AppIndex) error
 	optedIn(addr basics.Address, appIdx basics.AppIndex) (bool, error)
+	getLocal(addr basics.Address, appIdx basics.AppIndex, key string) (basics.TealValue, bool, error)
+	getGlobal(appIdx basics.AppIndex, key string) (basics.TealValue, bool, error)
 }
 
 type roundCowState struct {
