@@ -40,6 +40,7 @@ const (
 type modifiedGlobalApp struct {
 	stateChange globalAppStateChange
 	creator     basics.Address
+	params      basics.AppParams
 	kvCow       keyValueCow
 }
 
@@ -127,17 +128,17 @@ func (cb *roundCowState) deleteModGlobalApp(appIdx basics.AppIndex) {
 	delete(cb.mods.appglob, appIdx)
 }
 
-func (cb *roundCowState) getAppCreator(aidx basics.AppIndex) (basics.Address, bool, error) {
+func (cb *roundCowState) getAppParams(aidx basics.AppIndex) (basics.AppParams, basics.Address, bool, error) {
 	modGlobalApp, ok := cb.getModGlobalApp(aidx)
 	if ok {
 		if modGlobalApp.stateChange == deletedGlobalSC {
-			return basics.Address{}, false, nil
+			return basics.AppParams{}, basics.Address{}, false, nil
 		}
 		if modGlobalApp.stateChange == createdGlobalSC {
-			return modGlobalApp.creator, true, nil
+			return modGlobalApp.params, modGlobalApp.creator, true, nil
 		}
 	}
-	return cb.lookupParent.getAppCreator(aidx)
+	return cb.lookupParent.getAppParams(aidx)
 }
 
 func (cb *roundCowState) optedIn(addr basics.Address, appIdx basics.AppIndex) (bool, error) {
@@ -154,7 +155,7 @@ func (cb *roundCowState) optedIn(addr basics.Address, appIdx basics.AppIndex) (b
 	return cb.lookupParent.optedIn(addr, appIdx)
 }
 
-func (cb *roundCowState) optIn(addr basics.Address, appIdx basics.AppIndex) error {
+func (cb *roundCowState) optIn(appIdx basics.AppIndex, addr basics.Address) error {
 	// Make sure we're not already opted in
 	optedIn, err := cb.optedIn(addr, appIdx)
 	if err != nil {
@@ -176,7 +177,7 @@ func (cb *roundCowState) optIn(addr basics.Address, appIdx basics.AppIndex) erro
 	return nil
 }
 
-func (cb *roundCowState) optOut(addr basics.Address, appIdx basics.AppIndex) error {
+func (cb *roundCowState) optOut(appIdx basics.AppIndex, addr basics.Address) error {
 	// Make sure we're opted in
 	optedIn, err := cb.optedIn(addr, appIdx)
 	if err != nil {
@@ -210,26 +211,52 @@ func (cb *roundCowState) optOut(addr basics.Address, appIdx basics.AppIndex) err
 	return nil
 }
 
-func (cb *roundCowState) createApp(appIdx basics.AppIndex, creator basics.Address) error {
+func (cb *roundCowState) createApp(appIdx basics.AppIndex, creator basics.Address, params basics.AppParams) error {
 	// Ensure app does not exist
-	_, exists, err := cb.getAppCreator(appIdx)
+	_, _, exists, err := cb.getAppParams(appIdx)
 	if err != nil {
 		return err
 	}
 	if exists {
-		return fmt.Errorf("cannot crate app: app %d already exists", appIdx)
+		return fmt.Errorf("cannot create app: app %d already exists", appIdx)
 	}
 
 	// Mark app as created
 	modGlobalApp := cb.ensureModGlobalApp(appIdx)
 	modGlobalApp.stateChange = createdGlobalSC
 	modGlobalApp.creator = creator
+	modGlobalApp.params = params
+	return nil
+}
+
+func (cb *roundCowState) updateApp(appIdx basics.AppIndex, approvalProgram, clearStateProgram []byte) error {
+	// Ensure app exists
+	_, _, exists, err := cb.getAppParams(appIdx)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return fmt.Errorf("cannot updatee app: app %d does not exist", appIdx)
+	}
+
+	// Update app
+	modGlobalApp := cb.ensureModGlobalApp(appIdx)
+
+	// Copy program bytes, just in case the caller does something with the slice
+	approv := make([]byte, len(approvalProgram))
+	copy(approv, approvalProgram)
+
+	clear := make([]byte, len(clearStateProgram))
+	copy(clear, clearStateProgram)
+
+	modGlobalApp.params.ApprovalProgram = approv
+	modGlobalApp.params.ClearStateProgram = clear
 	return nil
 }
 
 func (cb *roundCowState) deleteApp(appIdx basics.AppIndex) error {
 	// Ensure app exists
-	_, exists, err := cb.getAppCreator(appIdx)
+	_, _, exists, err := cb.getAppParams(appIdx)
 	if err != nil {
 		return err
 	}
@@ -250,6 +277,7 @@ func (cb *roundCowState) deleteApp(appIdx basics.AppIndex) error {
 	// Mark app as deleted
 	modGlobalApp.stateChange = deletedGlobalSC
 	modGlobalApp.creator = basics.Address{}
+	modGlobalApp.params = basics.AppParams{}
 	return nil
 }
 
@@ -354,7 +382,7 @@ func (cb *roundCowState) delLocal(addr basics.Address, appIdx basics.AppIndex, k
 
 func (cb *roundCowState) getGlobal(appIdx basics.AppIndex, key string) (basics.TealValue, bool, error) {
 	// Ensure app exists
-	_, exists, err := cb.getAppCreator(appIdx)
+	_, _, exists, err := cb.getAppParams(appIdx)
 	if err != nil {
 		return basics.TealValue{}, false, err
 	}
@@ -386,7 +414,7 @@ func (cb *roundCowState) getGlobal(appIdx basics.AppIndex, key string) (basics.T
 
 func (cb *roundCowState) setGlobal(appIdx basics.AppIndex, key string, value basics.TealValue) (err error) {
 	// Ensure app exists
-	_, exists, err := cb.getAppCreator(appIdx)
+	_, _, exists, err := cb.getAppParams(appIdx)
 	if err != nil {
 		return err
 	}
@@ -420,7 +448,7 @@ func (cb *roundCowState) setGlobal(appIdx basics.AppIndex, key string, value bas
 
 func (cb *roundCowState) delGlobal(appIdx basics.AppIndex, key string) (err error) {
 	// Ensure app exists
-	_, exists, err := cb.getAppCreator(appIdx)
+	_, _, exists, err := cb.getAppParams(appIdx)
 	if err != nil {
 		return err
 	}

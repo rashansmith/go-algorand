@@ -77,13 +77,20 @@ type Balances interface {
 	ConsensusParams() config.ConsensusParams
 }
 
-// StateEvaluator is an interface that provides some Stateful TEAL
-// functionality that may be passed through to Apply from ledger, avoiding a
-// circular dependency between the logic and transactions packages
+// StateEvaluator is an interface that provides the methods required to
+// interact with applications into the transactions package
 type StateEvaluator interface {
-	Eval(program []byte) (pass bool, stateDelta basics.EvalDelta, err error)
-	Check(program []byte) (cost int, err error)
 	InitLedger(balances Balances, acctWhitelist []basics.Address, appGlobalWhitelist []basics.AppIndex, appIdx basics.AppIndex) error
+
+	EvalApproval() (pass bool, evalDelta basics.EvalDelta, err error)
+	EvalClearState() (pass bool, evalDelta basics.EvalDelta, err error)
+
+	CreateApplication(appIdx basics.AppIndex, creator basics.Address, params basics.AppParams) error
+	UpdateApplication(appIdx basics.AppIndex, approvalProgram, clearStateProgram []byte) error
+	DeleteApplication(appIdx basics.AppIndex) error
+
+	OptInApplication(appIdx basics.AppIndex, addr basics.Address) error
+	OptOutApplication(appIdx basics.AppIndex, addr basics.Address) error
 }
 
 // Header captures the fields common to every transaction type.

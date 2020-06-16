@@ -70,12 +70,12 @@ func (x *roundCowBase) getAssetCreator(assetIdx basics.AssetIndex) (basics.Addre
 	return x.l.GetAssetCreatorForRound(x.rnd, assetIdx)
 }
 
-func (x *roundCowBase) getAppCreator(appIdx basics.AppIndex) (basics.Address, bool, error) {
-	return x.l.GetAppCreatorForRound(x.rnd, appIdx)
-}
-
 func (x *roundCowBase) lookup(addr basics.Address) (basics.AccountData, error) {
 	return x.l.LookupWithoutRewards(x.rnd, addr)
+}
+
+func (x *roundCowBase) getAppParams(appIdx basics.AppIndex) (basics.AppParams, basics.Address, bool, error) {
+	return basics.AppParams{}, basics.Address{}, false, nil
 }
 
 func (x *roundCowBase) optedIn(addr basics.Address, appIdx basics.AppIndex) (bool, error) {
@@ -103,7 +103,8 @@ func (cs *roundCowState) GetAssetCreator(assetIdx basics.AssetIndex) (creator ba
 }
 
 func (cs *roundCowState) GetAppCreator(appIdx basics.AppIndex) (creator basics.Address, ok bool, err error) {
-	return cs.getAppCreator(appIdx)
+	_, creator, ok, err = cs.getAppParams(appIdx)
+	return
 }
 
 func (cs *roundCowState) Round() basics.Round {

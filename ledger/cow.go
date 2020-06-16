@@ -39,7 +39,7 @@ type roundCowParent interface {
 	isDup(basics.Round, basics.Round, transactions.Txid, txlease) (bool, error)
 	txnCounter() uint64
 	getAssetCreator(aidx basics.AssetIndex) (basics.Address, bool, error)
-	getAppCreator(aidx basics.AppIndex) (basics.Address, bool, error)
+	getAppParams(aidx basics.AppIndex) (basics.AppParams, basics.Address, bool, error)
 	getCreator(cidx basics.CreatableIndex, ctype basics.CreatableType) (basics.Address, bool, error)
 	optedIn(addr basics.Address, appIdx basics.AppIndex) (bool, error)
 	getLocal(addr basics.Address, appIdx basics.AppIndex, key string) (basics.TealValue, bool, error)
@@ -239,7 +239,7 @@ func (cb *roundCowState) mergeGlobalAppDelta(aidx basics.AppIndex, cga *modified
 		}
 
 		// If the child created the app, replay that event
-		err := cb.createApp(aidx, cga.creator)
+		err := cb.createApp(aidx, cga.creator, cga.params)
 		if err != nil {
 			panic(fmt.Sprintf("unable to merge created app to parent: %v", err))
 		}
@@ -344,7 +344,7 @@ func (cb *roundCowState) mergeLocalAppDelta(addr basics.Address, aidx basics.App
 		}
 
 		// If the child opted out, replay that event
-		err := cb.optOut(addr, aidx)
+		err := cb.optOut(aidx, addr)
 		if err != nil {
 			panic(fmt.Sprintf("unable to merge opted out app to parent: %v", err))
 		}
@@ -352,14 +352,14 @@ func (cb *roundCowState) mergeLocalAppDelta(addr basics.Address, aidx basics.App
 		if pla.stateChange == optedInLocalSC {
 			// If parent also opted in, then we must first opt out in parent to let
 			// the child's opt in take precedence
-			err := cb.optOut(addr, aidx)
+			err := cb.optOut(aidx, addr)
 			if err != nil {
 				panic(fmt.Sprintf("failed to opt out in preparation of child opt in: %v", err))
 			}
 		}
 
 		// If the child opted in, replay that event
-		err := cb.optIn(addr, aidx)
+		err := cb.optIn(aidx, addr)
 		if err != nil {
 			panic(fmt.Sprintf("unable to merge opted-in app to parent: %v", err))
 		}
