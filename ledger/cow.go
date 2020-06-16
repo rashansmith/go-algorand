@@ -319,6 +319,14 @@ stateOne to the child in stateTwo.
 
 */
 
+// BUG: no op, opt out, opt in
+// 	ctp
+//      no op, opt in
+//      no op, opt in, opt out
+//      ctp
+//      no op
+//      boom!
+
 func (cb *roundCowState) mergeLocalAppDelta(addr basics.Address, aidx basics.AppIndex, cla *modifiedLocalApp) {
 	// Grab delta reference for this addr/aidx local state
 	pla := cb.ensureModLocalApp(addr, aidx)
