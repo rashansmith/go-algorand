@@ -51,13 +51,18 @@ type roundCowState struct {
 	mods         StateDelta
 }
 
+type localAppKey struct {
+	addr   basics.Address
+	appIdx basics.AppIndex
+}
+
 // StateDelta describes the delta between a given round to the previous round
 type StateDelta struct {
 	// modified accounts
 	accts map[basics.Address]accountDelta
 
 	// modified local application data (local key/value stores)
-	appaccts map[basics.Address]map[basics.AppIndex]*modifiedLocalApp
+	appaccts map[localAppKey]*modifiedLocalApp
 
 	// modified global application data (incl. programs + global state)
 	appglob map[basics.AppIndex]*modifiedGlobalApp
@@ -82,7 +87,7 @@ func makeRoundCowState(b roundCowParent, hdr bookkeeping.BlockHeader) *roundCowS
 		proto:        config.Consensus[hdr.CurrentProtocol],
 		mods: StateDelta{
 			accts:      make(map[basics.Address]accountDelta),
-			appaccts:   make(map[basics.Address]map[basics.AppIndex]*modifiedLocalApp),
+			appaccts:   make(map[localAppKey]*modifiedLocalApp),
 			appglob:    make(map[basics.AppIndex]*modifiedGlobalApp),
 			Txids:      make(map[transactions.Txid]basics.Round),
 			txleases:   make(map[txlease]basics.Round),
@@ -184,7 +189,7 @@ func (cb *roundCowState) child() *roundCowState {
 		proto:        cb.proto,
 		mods: StateDelta{
 			accts:      make(map[basics.Address]accountDelta),
-			appaccts:   make(map[basics.Address]map[basics.AppIndex]*modifiedLocalApp),
+			appaccts:   make(map[localAppKey]*modifiedLocalApp),
 			appglob:    make(map[basics.AppIndex]*modifiedGlobalApp),
 			Txids:      make(map[transactions.Txid]basics.Round),
 			txleases:   make(map[txlease]basics.Round),
@@ -211,10 +216,8 @@ func (cb *roundCowState) commitToParent() {
 		cb.commitParent.mergeGlobalAppDelta(aidx, modGlobalApp)
 	}
 
-	for addr, modLocalApps := range cb.mods.appaccts {
-		for aidx, modLocalApp := range modLocalApps {
-			cb.commitParent.mergeLocalAppDelta(addr, aidx, modLocalApp)
-		}
+	for lkey, modLocalApp := range cb.mods.appaccts {
+		cb.commitParent.mergeLocalAppDelta(lkey.addr, lkey.appIdx, modLocalApp)
 	}
 
 	for txid, lv := range cb.mods.Txids {

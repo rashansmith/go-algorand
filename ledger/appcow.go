@@ -50,48 +50,14 @@ type modifiedLocalApp struct {
 }
 
 func (cb *roundCowState) getModLocalApp(addr basics.Address, appIdx basics.AppIndex) (*modifiedLocalApp, bool) {
-	// Have we modified any local app state for this account?
-	modLocalApps, ok := cb.mods.appaccts[addr]
-	if ok {
-		// Within this account, have we modified any local app state for this app?
-		modLocalApp, ok := modLocalApps[appIdx]
-		if ok {
-			return modLocalApp, true
-		}
-	}
-	return nil, false
-}
-
-func (cb *roundCowState) deleteModLocalApp(addr basics.Address, appIdx basics.AppIndex) {
-	// Have we modified any local app state for this account?
-	modLocalApps, ok := cb.mods.appaccts[addr]
-	if !ok {
-		return
-	}
-
-	// Within this account, have we modified any local app state for this app?
-	_, ok = modLocalApps[appIdx]
-	if ok {
-		// If so, delete it
-		delete(modLocalApps, appIdx)
-	}
-
-	// Are there any app deltas left for this account? If not, clear it out
-	if len(modLocalApps) == 0 {
-		delete(cb.mods.appaccts, addr)
-	}
+	// Have we modified any local app state for this (account, app id)?
+	modLocalApp, ok := cb.mods.appaccts[localAppKey{addr, appIdx}]
+	return modLocalApp, ok
 }
 
 func (cb *roundCowState) ensureModLocalApp(addr basics.Address, appIdx basics.AppIndex) *modifiedLocalApp {
 	// Have we already modified any local app state for this account?
-	modLocalApps, ok := cb.mods.appaccts[addr]
-	if !ok {
-		modLocalApps = make(map[basics.AppIndex]*modifiedLocalApp)
-		cb.mods.appaccts[addr] = modLocalApps
-	}
-
-	// If we have an existing *modifiedLocalApp, return it
-	modLocalApp, ok := modLocalApps[appIdx]
+	modLocalApp, ok := cb.mods.appaccts[localAppKey{addr, appIdx}]
 	if ok {
 		return modLocalApp
 	}
@@ -100,7 +66,7 @@ func (cb *roundCowState) ensureModLocalApp(addr basics.Address, appIdx basics.Ap
 	modLocalApp = &modifiedLocalApp{
 		kvCow: makeKeyValueCow(),
 	}
-	modLocalApps[appIdx] = modLocalApp
+	cb.mods.appaccts[localAppKey{addr, appIdx}] = modLocalApp
 
 	return modLocalApp
 }
@@ -122,10 +88,6 @@ func (cb *roundCowState) ensureModGlobalApp(appIdx basics.AppIndex) *modifiedGlo
 	cb.mods.appglob[appIdx] = modGlobalApp
 
 	return modGlobalApp
-}
-
-func (cb *roundCowState) deleteModGlobalApp(appIdx basics.AppIndex) {
-	delete(cb.mods.appglob, appIdx)
 }
 
 func (cb *roundCowState) getAppParams(aidx basics.AppIndex) (basics.AppParams, basics.Address, bool, error) {
