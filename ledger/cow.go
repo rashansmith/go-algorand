@@ -17,8 +17,6 @@
 package ledger
 
 import (
-	"fmt"
-
 	"github.com/algorand/go-algorand/config"
 	"github.com/algorand/go-algorand/data/basics"
 	"github.com/algorand/go-algorand/data/bookkeeping"
@@ -161,18 +159,15 @@ func (cb *roundCowState) putCreatables(addr basics.Address, newCreatables []basi
 		}
 	}
 
-	// Mark creatables as deleted, ensuring we don't produce a delta if the
-	// creatable was created in this same cow
+	// Mark creatables as deleted (creatables marked as created and then
+	// deleted will still yield a deleted modifiedCreatable, but we will
+	// ignore the superfluous delete when it gets propogated to the
+	// database)
 	for _, cl := range deletedCreatables {
-		_, ok := cb.mods.creatables[cl.Index]
-		if ok {
-			delete(cb.mods.creatables, cl.Index)
-		} else {
-			cb.mods.creatables[cl.Index] = modifiedCreatable{
-				ctype:   cl.Type,
-				creator: addr,
-				created: false,
-			}
+		cb.mods.creatables[cl.Index] = modifiedCreatable{
+			ctype:   cl.Type,
+			creator: addr,
+			created: false,
 		}
 	}
 }
@@ -196,213 +191,6 @@ func (cb *roundCowState) child() *roundCowState {
 			creatables: make(map[basics.CreatableIndex]modifiedCreatable),
 			hdr:        cb.mods.hdr,
 		},
-	}
-}
-
-func (cb *roundCowState) mergeGlobalAppDelta(aidx basics.AppIndex, cga *modifiedGlobalApp) {
-	// Grab delta reference for this app id (might be empty)
-	pga := cb.ensureModGlobalApp(aidx)
-
-	// Do some sanity checks
-	if pga.stateChange == createdGlobalSC && cga.stateChange == createdGlobalSC {
-		// App IDs are globally unique and monotonically increasing, so
-		// creating an app with a given ID twice is impossible
-		panic("invalid global app state change (created twice)!")
-	}
-	if pga.stateChange == deletedGlobalSC && cga.stateChange == deletedGlobalSC {
-		// Deleting an app with the same ID twice is impossible
-		panic("invalid global app state change (deleted twice)!")
-	}
-	if pga.stateChange == deletedGlobalSC && cga.stateChange == createdGlobalSC {
-		// App IDs are globally unique and monotonically increasing, so
-		// once an app is deleted, it should be impossible to create
-		// one with the same ID again
-		panic("invalid global app state change (deleted before created)!")
-	}
-
-	switch cga.stateChange {
-	case deletedGlobalSC:
-		// Sanity check: deleting child should have no delta
-		if len(cga.kvCow.delta) != 0 {
-			panic("delta deleted app, but kvCow had nonzero length delta")
-		}
-
-		// If the child deleted the app, replay that event
-		err := cb.deleteApp(aidx)
-		if err != nil {
-			panic(fmt.Sprintf("unable to merge deleted app to parent: %v", err))
-		}
-	case createdGlobalSC:
-		// Sanity check: parent should have no kv delta since app is being created
-		if len(pga.kvCow.delta) != 0 {
-			panic("delta created app, but parent cow parent had nonzero delta")
-		}
-
-		// If the child created the app, replay that event
-		err := cb.createApp(aidx, cga.creator, cga.params)
-		if err != nil {
-			panic(fmt.Sprintf("unable to merge created app to parent: %v", err))
-		}
-	case noGlobalSC:
-	default:
-		panic(fmt.Sprintf("unknown globalAppStateChange %v", cga.stateChange))
-	}
-
-	// Reply key/value deltas in us
-	for key, kvDelta := range cga.kvCow.delta {
-		switch kvDelta.Action {
-		case basics.SetUintAction:
-			fallthrough
-		case basics.SetBytesAction:
-			val, ok := kvDelta.ToTealValue()
-			if !ok {
-				panic(fmt.Sprintf("failed to convert global kvDelta to value: %v", kvDelta))
-			}
-
-			err := cb.setGlobal(aidx, key, val)
-			if err != nil {
-				panic(fmt.Sprintf("failed to merge cow global k/v write: %v", err))
-			}
-		case basics.DeleteAction:
-			err := cb.delGlobal(aidx, key)
-			if err != nil {
-				panic(fmt.Sprintf("failed to merge cow global k/v delete: %v", err))
-			}
-		default:
-			panic(fmt.Sprintf("unknown global ValueDelta action %v", kvDelta.Action))
-		}
-	}
-}
-
-/*
-The parent modLocalApp can be in one of three states:
-	- noLocalSC (indicating no state change)
-	- optInLocalSC (indicating we need to opt in)
-	- optOutLocalSC (indicating we need to opt out)
-
-The child modLocalApp can also be in one of those three states. There are
-therefore nine possible transitions, some of which are valid, and some of which
-are invalid.
-
-We use (stateOne, stateTwo) to represent a transition from the parent in
-stateOne to the child in stateTwo.
-
-(noLocalSC, noLocalSC)
-- We must have been opted in already: just apply k/v deltas
-
-(noLocalSC, optInLocalSC)
-- We must have been opted out already: opt in and apply k/v deltas to blank state
-
-(noLocalSC, optOutLocalSC)
-- We must have been opted in already: opt out (len k/v deltas must be zero)
-
-(optInLocalSC, noLocalSC)
-- Parent opted us in: apply k/v deltas to parent state
-
-(optInLocalSC, optInLocalSC)
-- Child must have opted out at some point and opted in again:
-	1. Opt out in parent (must succeed), since child must have opted out at
-	   some point and this is a convenient way to reset state
-	2. Opt in in parent and apply k/v deltas to now blank state
-
-(optInLocalSC, optOutLocalSC)
-- Opt out (len k/v deltas must be zero)
-
-(optOutLocalSC, noLocalSC)
-- Invalid state. Why did the child produce a delta?
-
-(optOutLocalSC, optInLocalSC)
-- Opt in in parent. Apply deltas.
-
-(optOutLocalSC, optOutLocalSC)
-- Invalid state. Why did the child produce a delta?
-
-*/
-
-// BUG: no op, opt out, opt in
-// 	ctp
-//      no op, opt in
-//      no op, opt in, opt out
-//      ctp
-//      no op
-//      boom!
-
-func (cb *roundCowState) mergeLocalAppDelta(addr basics.Address, aidx basics.AppIndex, cla *modifiedLocalApp) {
-	// Grab delta reference for this addr/aidx local state
-	pla := cb.ensureModLocalApp(addr, aidx)
-
-	// parent optOut -> child optOut is an invalid state, because even if
-	// child went through optIn -> optOut, they should have checked that
-	// parent was optOut and deleted the delta entirely
-	if pla.stateChange == optedOutLocalSC && cla.stateChange == optedOutLocalSC {
-		panic("parent cow and child cow both opted out")
-	}
-
-	// parent optOut -> child noOp is an invalid state, because the child
-	// should not have produced a delta at all
-	if pla.stateChange == optedOutLocalSC && cla.stateChange == noLocalSC {
-		panic("child cow produced noop delta after parent opted out")
-	}
-
-	switch cla.stateChange {
-	case optedOutLocalSC:
-		// Sanity check: opting out, child should have no kv delta
-		if len(cla.kvCow.delta) != 0 {
-			panic("child opted out, but child kvCow had nonzero length delta")
-		}
-
-		// If the child opted out, replay that event
-		err := cb.optOut(aidx, addr)
-		if err != nil {
-			panic(fmt.Sprintf("unable to merge opted out app to parent: %v", err))
-		}
-	case optedInLocalSC:
-		if pla.stateChange == optedInLocalSC {
-			// If parent also opted in, then we must first opt out in parent to let
-			// the child's opt in take precedence
-			err := cb.optOut(aidx, addr)
-			if err != nil {
-				panic(fmt.Sprintf("failed to opt out in preparation of child opt in: %v", err))
-			}
-		}
-
-		// If the child opted in, replay that event
-		err := cb.optIn(aidx, addr)
-		if err != nil {
-			panic(fmt.Sprintf("unable to merge opted-in app to parent: %v", err))
-		}
-
-		// TODO: make unit test
-		if len(pla.kvCow.delta) != 0 {
-			panic(fmt.Sprintf("child opted in, but parent had nonzero kv delta immediately after opt in"))
-		}
-	case noLocalSC:
-	default:
-		panic(fmt.Sprintf("unknown localAppStateChange %v", cla.stateChange))
-	}
-
-	for key, kvDelta := range cla.kvCow.delta {
-		switch kvDelta.Action {
-		case basics.SetUintAction:
-			fallthrough
-		case basics.SetBytesAction:
-			val, ok := kvDelta.ToTealValue()
-			if !ok {
-				panic(fmt.Sprintf("failed to convert local kvDelta to value: %v", kvDelta))
-			}
-
-			err := cb.commitParent.setLocal(addr, aidx, key, val)
-			if err != nil {
-				panic(fmt.Sprintf("failed to merge cow local k/v write: %v", err))
-			}
-		case basics.DeleteAction:
-			err := cb.commitParent.delLocal(addr, aidx, key)
-			if err != nil {
-				panic(fmt.Sprintf("failed to merge cow local k/v delete: %v", err))
-			}
-		default:
-			panic(fmt.Sprintf("unknown local ValueDelta action %v", kvDelta.Action))
-		}
 	}
 }
 
@@ -438,17 +226,10 @@ func (cb *roundCowState) commitToParent() {
 	}
 
 	for cidx, cdelta := range cb.mods.creatables {
-		pdelta, ok := cb.commitParent.mods.creatables[cidx]
-		if ok {
-			// If the parent created the creatable, and the child deleted it,
-			// then we can avoid creating a delta entirely.
-			if pdelta.created && !cdelta.created {
-				delete(cb.commitParent.mods.creatables, cidx)
-				continue
-			}
-		}
-
-		// Otherwise, all creatable modifications should propogate to the parent
+		// All creatable modifications should propogate to the parent
+		// (as in putCreatables, if a creatable is created and then
+		// deleted, it's OK to still produce a net deleted delta in the
+		// end, because we will ignore it when it gets to the database)
 		cb.commitParent.mods.creatables[cidx] = cdelta
 	}
 }
