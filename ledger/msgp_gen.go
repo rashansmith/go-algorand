@@ -63,6 +63,30 @@ import (
 //           |-----> (*) Msgsize
 //           |-----> (*) MsgIsZero
 //
+// globalAppStateChange
+//           |-----> MarshalMsg
+//           |-----> CanMarshalMsg
+//           |-----> (*) UnmarshalMsg
+//           |-----> (*) CanUnmarshalMsg
+//           |-----> Msgsize
+//           |-----> MsgIsZero
+//
+// localAppStateChange
+//          |-----> MarshalMsg
+//          |-----> CanMarshalMsg
+//          |-----> (*) UnmarshalMsg
+//          |-----> (*) CanUnmarshalMsg
+//          |-----> Msgsize
+//          |-----> MsgIsZero
+//
+// programType
+//      |-----> MarshalMsg
+//      |-----> CanMarshalMsg
+//      |-----> (*) UnmarshalMsg
+//      |-----> (*) CanUnmarshalMsg
+//      |-----> Msgsize
+//      |-----> MsgIsZero
+//
 
 // MarshalMsg implements msgp.Marshaler
 func (z *AccountTotals) MarshalMsg(b []byte) (o []byte, err error) {
@@ -1660,4 +1684,142 @@ func (z *encodedBalanceRecord) Msgsize() (s int) {
 // MsgIsZero returns whether this is a zero value
 func (z *encodedBalanceRecord) MsgIsZero() bool {
 	return ((*z).Address.MsgIsZero()) && ((*z).AccountData.MsgIsZero())
+}
+
+// MarshalMsg implements msgp.Marshaler
+func (z globalAppStateChange) MarshalMsg(b []byte) (o []byte, err error) {
+	o = msgp.Require(b, z.Msgsize())
+	o = msgp.AppendUint64(o, uint64(z))
+	return
+}
+
+func (_ globalAppStateChange) CanMarshalMsg(z interface{}) bool {
+	_, ok := (z).(globalAppStateChange)
+	if !ok {
+		_, ok = (z).(*globalAppStateChange)
+	}
+	return ok
+}
+
+// UnmarshalMsg implements msgp.Unmarshaler
+func (z *globalAppStateChange) UnmarshalMsg(bts []byte) (o []byte, err error) {
+	{
+		var zb0001 uint64
+		zb0001, bts, err = msgp.ReadUint64Bytes(bts)
+		if err != nil {
+			err = msgp.WrapError(err)
+			return
+		}
+		(*z) = globalAppStateChange(zb0001)
+	}
+	o = bts
+	return
+}
+
+func (_ *globalAppStateChange) CanUnmarshalMsg(z interface{}) bool {
+	_, ok := (z).(*globalAppStateChange)
+	return ok
+}
+
+// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
+func (z globalAppStateChange) Msgsize() (s int) {
+	s = msgp.Uint64Size
+	return
+}
+
+// MsgIsZero returns whether this is a zero value
+func (z globalAppStateChange) MsgIsZero() bool {
+	return z == 0
+}
+
+// MarshalMsg implements msgp.Marshaler
+func (z localAppStateChange) MarshalMsg(b []byte) (o []byte, err error) {
+	o = msgp.Require(b, z.Msgsize())
+	o = msgp.AppendUint64(o, uint64(z))
+	return
+}
+
+func (_ localAppStateChange) CanMarshalMsg(z interface{}) bool {
+	_, ok := (z).(localAppStateChange)
+	if !ok {
+		_, ok = (z).(*localAppStateChange)
+	}
+	return ok
+}
+
+// UnmarshalMsg implements msgp.Unmarshaler
+func (z *localAppStateChange) UnmarshalMsg(bts []byte) (o []byte, err error) {
+	{
+		var zb0001 uint64
+		zb0001, bts, err = msgp.ReadUint64Bytes(bts)
+		if err != nil {
+			err = msgp.WrapError(err)
+			return
+		}
+		(*z) = localAppStateChange(zb0001)
+	}
+	o = bts
+	return
+}
+
+func (_ *localAppStateChange) CanUnmarshalMsg(z interface{}) bool {
+	_, ok := (z).(*localAppStateChange)
+	return ok
+}
+
+// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
+func (z localAppStateChange) Msgsize() (s int) {
+	s = msgp.Uint64Size
+	return
+}
+
+// MsgIsZero returns whether this is a zero value
+func (z localAppStateChange) MsgIsZero() bool {
+	return z == 0
+}
+
+// MarshalMsg implements msgp.Marshaler
+func (z programType) MarshalMsg(b []byte) (o []byte, err error) {
+	o = msgp.Require(b, z.Msgsize())
+	o = msgp.AppendUint64(o, uint64(z))
+	return
+}
+
+func (_ programType) CanMarshalMsg(z interface{}) bool {
+	_, ok := (z).(programType)
+	if !ok {
+		_, ok = (z).(*programType)
+	}
+	return ok
+}
+
+// UnmarshalMsg implements msgp.Unmarshaler
+func (z *programType) UnmarshalMsg(bts []byte) (o []byte, err error) {
+	{
+		var zb0001 uint64
+		zb0001, bts, err = msgp.ReadUint64Bytes(bts)
+		if err != nil {
+			err = msgp.WrapError(err)
+			return
+		}
+		(*z) = programType(zb0001)
+	}
+	o = bts
+	return
+}
+
+func (_ *programType) CanUnmarshalMsg(z interface{}) bool {
+	_, ok := (z).(*programType)
+	return ok
+}
+
+// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
+func (z programType) Msgsize() (s int) {
+	s = msgp.Uint64Size
+	return
+}
+
+// MsgIsZero returns whether this is a zero value
+func (z programType) MsgIsZero() bool {
+	return z == 0
 }

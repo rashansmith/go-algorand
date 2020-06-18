@@ -182,7 +182,8 @@ func (v2 *Handlers) AccountInformation(ctx echo.Context, address string, params 
 		}
 	}
 
-	convertTKV := func(tkv *basics.TealKeyValue) (converted generated.TealKeyValueStore) {
+//TODO(maxj) fix post refactor
+/*	convertTKV := func(tkv *basics.TealKeyValue) (converted generated.TealKeyValueStore) {
 		for k, v := range *tkv {
 			converted = append(converted, generated.TealKeyValue{
 				Key: k,
@@ -240,7 +241,7 @@ func (v2 *Handlers) AccountInformation(ctx echo.Context, address string, params 
 		NumByteSlice: record.TotalAppSchema.NumByteSlice,
 		NumUint:      record.TotalAppSchema.NumUint,
 	}
-
+*/
 	response := generated.AccountResponse{
 		SigType:                     nil,
 		Round:                       uint64(lastRound),
@@ -255,9 +256,9 @@ func (v2 *Handlers) AccountInformation(ctx echo.Context, address string, params 
 		CreatedAssets:               &createdAssets,
 		Assets:                      &assets,
 		AuthAddr:                    addrOrNil(record.AuthAddr),
-		CreatedApps:                 &createdApps,
-		AppsLocalState:              &appsLocalState,
-		AppsTotalSchema:             &totalAppSchema,
+//		CreatedApps:                 &createdApps,
+//		AppsLocalState:              &appsLocalState,
+//		AppsTotalSchema:             &totalAppSchema,
 	}
 
 	return ctx.JSON(http.StatusOK, response)

@@ -775,6 +775,8 @@ func AccountInformation(ctx lib.ReqContext, context echo.Context) {
 		}
 	}
 
+// TODO(maxj) fix post refactor
+/*
 	var apps map[uint64]v1.AppLocalState
 	if len(record.AppLocalStates) > 0 {
 		apps = make(map[uint64]v1.AppLocalState)
@@ -790,7 +792,7 @@ func AccountInformation(ctx lib.ReqContext, context echo.Context) {
 			appParams[uint64(idx)] = modelAppParams(addr, params)
 		}
 	}
-
+*/
 	var apiParticipation *v1.Participation
 	if record.VoteID != (crypto.OneTimeSignatureVerifier{}) {
 		apiParticipation = participationKeysEncode(record)
@@ -807,8 +809,8 @@ func AccountInformation(ctx lib.ReqContext, context echo.Context) {
 		Participation:               apiParticipation,
 		AssetParams:                 assetParams,
 		Assets:                      assets,
-		AppParams:                   appParams,
-		AppLocalStates:              apps,
+//		AppParams:                   appParams,
+//		AppLocalStates:              apps,
 	}
 
 	SendJSON(AccountInformationResponse{&accountInfo}, w, ctx.Log)
@@ -1402,7 +1404,8 @@ func ApplicationInformation(ctx lib.ReqContext, context echo.Context) {
 	//         schema: {type: string}
 	//       401: { description: Invalid API Token }
 	//       default: { description: Unknown Error }
-	w := context.Response().Writer
+
+/*	w := context.Response().Writer
 
 	queryIndex, err := strconv.ParseUint(context.Param("index"), 10, 64)
 
@@ -1424,12 +1427,13 @@ func ApplicationInformation(ctx lib.ReqContext, context echo.Context) {
 	}
 
 	lastRound := ledger.Latest()
-	record, err := ledger.Lookup(lastRound, creator)
+*/ /*	record, err := ledger.Lookup(lastRound, creator)
 	if err != nil {
 		lib.ErrorResponse(w, http.StatusInternalServerError, err, errFailedLookingUpLedger, ctx.Log)
 		return
-	}
-
+	}*/
+// TODO(maxj) fix post refactor
+/*
 	if app, ok := record.AppParams[aidx]; ok {
 		appParams := modelAppParams(creator, app)
 		SendJSON(ApplicationInformationResponse{&appParams}, w, ctx.Log)
@@ -1437,6 +1441,7 @@ func ApplicationInformation(ctx lib.ReqContext, context echo.Context) {
 		lib.ErrorResponse(w, http.StatusBadRequest, fmt.Errorf(errFailedRetrievingApp), errFailedRetrievingApp, ctx.Log)
 		return
 	}
+*/
 }
 
 // Applications is an httpHandler for route GET /v1/applications
@@ -1503,16 +1508,18 @@ func Applications(ctx lib.ReqContext, context echo.Context) {
 	}
 
 	// Query app range from the database
-	ledger := ctx.Node.Ledger()
-	alocs, err := ledger.ListApplications(basics.AppIndex(appIdx), uint64(max))
+//	ledger := ctx.Node.Ledger()
+/*	alocs, err := ledger.ListApplications(basics.AppIndex(appIdx), uint64(max))
 	if err != nil {
 		lib.ErrorResponse(w, http.StatusInternalServerError, err, errFailedRetrievingApp, ctx.Log)
 		return
 	}
-
+*/
+// TODO(maxj) fix post refactor
+/*
 	// Fill in the app models
-	lastRound := ledger.Latest()
-	var result v1.ApplicationList
+	lastRound := ledger.Latest()*/
+	var result v1.ApplicationList/*
 	for _, aloc := range alocs {
 		// Fetch the app parameters
 		creatorRecord, err := ledger.Lookup(lastRound, aloc.Creator)
@@ -1534,6 +1541,7 @@ func Applications(ctx lib.ReqContext, context echo.Context) {
 			AppParams: params,
 		})
 	}
+*/
 
 	SendJSON(ApplicationsResponse{&result}, w, ctx.Log)
 }

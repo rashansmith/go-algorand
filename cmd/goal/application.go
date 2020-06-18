@@ -879,7 +879,8 @@ var readStateAppCmd = &cobra.Command{
 	Long:  `Read global or local (account-specific) state for an application`,
 	Args:  validateNoPosArgsFn,
 	Run: func(cmd *cobra.Command, _ []string) {
-		dataDir := ensureSingleDataDir()
+// TODO(maxj) fix post refactor
+/*		dataDir := ensureSingleDataDir()
 		client := ensureFullClient(dataDir)
 
 		// Ensure exactly one of --local or --global is specified
@@ -952,5 +953,6 @@ var readStateAppCmd = &cobra.Command{
 
 		// Should be unreachable
 		return
+*/
 	},
 }

@@ -175,6 +175,16 @@ type StateSchema struct {
 	NumByteSlice uint64 `codec:"nbs"`
 }
 
+// TotalAppInfo keeps track of the total amount of storage used for
+// applications by a single account
+type TotalAppInfo struct {
+	_struct struct{} `codec:",omitempty,omitemptyarray"`
+
+	Schema  StateSchema
+	NumCreated uint64
+	NumOptedIn uint64
+}
+
 // AddSchema adds two StateSchemas together
 func (sm StateSchema) AddSchema(osm StateSchema) (out StateSchema) {
 	out.NumUint = AddSaturate(sm.NumUint, osm.NumUint)

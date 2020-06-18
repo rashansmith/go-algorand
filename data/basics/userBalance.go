@@ -170,6 +170,17 @@ type AccountData struct {
 	// This allows key rotation, changing the members in a multisig, etc.
 	AuthAddr Address `codec:"spend"`
 
+	// TotalAppApp stores the sum of all of the LocalStateSchemas
+	// and GlobalStateSchemas in this account (global for applications
+	// we created local for applications we opted in to), as well as the
+	// total number applications created and opted in to, so that we don't
+	// have to iterate over all of them to compute MinBalance.
+	TotalAppInfo TotalAppInfo `codec:"appinfo"`
+}
+
+type AppData struct {
+	_struct struct{} `codec:",omitempty,omitemptyarray"`
+
 	// AppLocalStates stores the local states associated with any applications
 	// that this account has opted in to.
 	AppLocalStates map[AppIndex]AppLocalState `codec:"appl,allocbound=encodedMaxAppLocalStates"`
@@ -177,12 +188,6 @@ type AccountData struct {
 	// AppParams stores the global parameters and state associated with any
 	// applications that this account has created.
 	AppParams map[AppIndex]AppParams `codec:"appp,allocbound=encodedMaxAppParams"`
-
-	// TotalAppSchema stores the sum of all of the LocalStateSchemas
-	// and GlobalStateSchemas in this account (global for applications
-	// we created local for applications we opted in to), so that we don't
-	// have to iterate over all of them to compute MinBalance.
-	TotalAppSchema StateSchema `codec:"tsch"`
 }
 
 // AppLocalState stores the LocalState associated with an application. It also
@@ -392,16 +397,16 @@ func (u AccountData) MinBalance(proto *config.ConsensusParams) (res MicroAlgos) 
 	min = AddSaturate(min, assetCost)
 
 	// Base MinBalance for each created application
-	appCreationCost := MulSaturate(proto.AppFlatParamsMinBalance, uint64(len(u.AppParams)))
+	appCreationCost := MulSaturate(proto.AppFlatParamsMinBalance, u.TotalAppInfo.NumCreated)
 	min = AddSaturate(min, appCreationCost)
 
 	// Base MinBalance for each opted in application
-	appOptInCost := MulSaturate(proto.AppFlatOptInMinBalance, uint64(len(u.AppLocalStates)))
+	appOptInCost := MulSaturate(proto.AppFlatOptInMinBalance, u.TotalAppInfo.NumOptedIn)
 	min = AddSaturate(min, appOptInCost)
 
 	// MinBalance for state usage measured by LocalStateSchemas and
 	// GlobalStateSchemas
-	schemaCost := u.TotalAppSchema.MinBalance(proto)
+	schemaCost := u.TotalAppInfo.Schema.MinBalance(proto)
 	min = AddSaturate(min, schemaCost.Raw)
 
 	res.Raw = min
@@ -445,6 +450,7 @@ type BalanceRecord struct {
 	Addr Address `codec:"addr"`
 
 	AccountData
+	AppData
 }
 
 // ToBeHashed implements the crypto.Hashable interface

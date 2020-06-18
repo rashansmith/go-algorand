@@ -65,11 +65,12 @@ func makeAppLedger(
 		round:      round,
 	}
 
-	appsExist := make(map[basics.AppIndex]bool, len(apps))
+	// TODO(maxj) fix post refactor
+//	appsExist := make(map[basics.AppIndex]bool, len(apps))
 	states := makeAppState()
-	states.appIdx = appIdx
-	for _, aid := range apps {
-		for addr, ad := range balances {
+//	states.appIdx = appIdx
+//	for _, aid := range apps {
+		/*for addr, ad := range balances {
 			if params, ok := ad.AppParams[aid]; ok {
 				states.global[aid] = params.GlobalState
 				appsExist[aid] = true
@@ -82,9 +83,9 @@ func makeAppLedger(
 				ls[aid] = local.KeyValue
 				states.locals[addr] = ls
 			}
-		}
-	}
-
+		}*/
+//	}
+/*
 	// painless mode creates all missed global states and opt-in all mentioned accounts
 	if painless {
 		for _, aid := range apps {
@@ -125,7 +126,7 @@ func makeAppLedger(
 			}
 		}
 	}
-
+*/
 	ledger, err := ledger.MakeDebugAppLedger(ba, accounts, apps, appIdx, ledger.AppTealGlobals{CurrentRound: basics.Round(round), LatestTimestamp: latestTimestamp})
 	return ledger, states, err
 }
@@ -171,11 +172,13 @@ func (ba *balancesAdapter) GetAssetCreator(assetIdx basics.AssetIndex) (basics.A
 }
 
 func (ba *balancesAdapter) GetAppCreator(appIdx basics.AppIndex) (basics.Address, bool, error) {
-	for addr, br := range ba.balances {
+// TODO(maxj) fix post refactor
+/*	for addr, br := range ba.balances {
 		if _, ok := br.AppParams[appIdx]; ok {
 			return addr, true, nil
 		}
 	}
+*/
 	return basics.Address{}, false, nil
 }
 
