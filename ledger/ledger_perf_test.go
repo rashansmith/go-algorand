@@ -30,6 +30,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/algorand/go-algorand/agreement"
+	"github.com/algorand/go-algorand/config"
 	"github.com/algorand/go-algorand/crypto"
 	"github.com/algorand/go-algorand/data/basics"
 	"github.com/algorand/go-algorand/data/bookkeeping"
@@ -167,14 +168,15 @@ func benchmarkFullBlocks(params testParams, b *testing.B) {
 
 	// open first ledger
 	const inMem = false // use persistent storage
-	const archival = true
-	l0, err := OpenLedger(logging.Base(), dbPrefix, inMem, genesisInitState, archival)
+	cfg := config.GetDefaultLocal()
+	cfg.Archival = true
+	l0, err := OpenLedger(logging.Base(), dbPrefix, inMem, genesisInitState, cfg)
 	require.NoError(b, err)
 
 	// open second ledger
 	dbName = fmt.Sprintf("%s.%d.2", b.Name(), crypto.RandUint64())
 	dbPrefix = filepath.Join(dbTempDir, dbName)
-	l1, err := OpenLedger(logging.Base(), dbPrefix, inMem, genesisInitState, archival)
+	l1, err := OpenLedger(logging.Base(), dbPrefix, inMem, genesisInitState, cfg)
 	require.NoError(b, err)
 
 	blk := genesisInitState.Block
@@ -395,7 +397,7 @@ func init() {
 	testCases[params.name] = params
 
 	// Int 1
-	progBytes, err := logic.AssembleString(`int 1`)
+	progBytes, err := logic.AssembleStringV2(`int 1`)
 	if err != nil {
 		panic(err)
 	}
@@ -417,12 +419,12 @@ func init() {
 	testCases[params.name] = params
 
 	// Assemble ASA programs
-	asaClearStateProgram, err = logic.AssembleString(asaClearAsm)
+	asaClearStateProgram, err = logic.AssembleStringV2(asaClearAsm)
 	if err != nil {
 		panic(err)
 	}
 
-	asaAppovalProgram, err = logic.AssembleString(asaAppovalAsm)
+	asaAppovalProgram, err = logic.AssembleStringV2(asaAppovalAsm)
 	if err != nil {
 		panic(err)
 	}
@@ -469,7 +471,7 @@ func genBigNoOp(numOps int) []byte {
 	progParts = append(progParts, `int 1`)
 	progParts = append(progParts, `return`)
 	progAsm := strings.Join(progParts, "\n")
-	progBytes, err := logic.AssembleString(progAsm)
+	progBytes, err := logic.AssembleStringV2(progAsm)
 	if err != nil {
 		panic(err)
 	}
@@ -489,7 +491,7 @@ func genBigHashes(numHashes int, numPad int) []byte {
 	progParts = append(progParts, `int 1`)
 	progParts = append(progParts, `return`)
 	progAsm := strings.Join(progParts, "\n")
-	progBytes, err := logic.AssembleString(progAsm)
+	progBytes, err := logic.AssembleStringV2(progAsm)
 	if err != nil {
 		panic(err)
 	}
@@ -632,7 +634,7 @@ func genAppTestParams(numKeys int, bigDiffs bool, stateType string) testParams {
 	progAsm := strings.Join(progParts, "\n")
 
 	// assemble
-	progBytes, err := logic.AssembleString(progAsm)
+	progBytes, err := logic.AssembleStringV2(progAsm)
 	if err != nil {
 		panic(err)
 	}
@@ -708,7 +710,7 @@ func genAppTestParamsMaxClone(numKeys int) testParams {
 	progAsm := strings.Join(progParts, "\n")
 
 	// assemble
-	progBytes, err := logic.AssembleString(progAsm)
+	progBytes, err := logic.AssembleStringV2(progAsm)
 	if err != nil {
 		panic(err)
 	}
