@@ -128,35 +128,6 @@ func (ac *ApplicationCallTxnFields) Empty() bool {
 	return true
 }
 
-func applyStateDelta(kv basics.TealKeyValue, stateDelta basics.StateDelta) error {
-	if kv == nil {
-		return fmt.Errorf("cannot apply delta to nil TealKeyValue")
-	}
-
-	// Because the keys of stateDelta each correspond to one existing/new
-	// key in the key/value store, there can be at most one delta per key.
-	// Therefore the order that the deltas are applied does not matter.
-	for key, valueDelta := range stateDelta {
-		switch valueDelta.Action {
-		case basics.SetUintAction:
-			kv[key] = basics.TealValue{
-				Type: basics.TealUintType,
-				Uint: valueDelta.Uint,
-			}
-		case basics.SetBytesAction:
-			kv[key] = basics.TealValue{
-				Type:  basics.TealBytesType,
-				Bytes: valueDelta.Bytes,
-			}
-		case basics.DeleteAction:
-			delete(kv, key)
-		default:
-			return fmt.Errorf("unknown delta action %d", valueDelta.Action)
-		}
-	}
-	return nil
-}
-
 // AddressByIndex converts an integer index into an address associated with the
 // transaction. Index 0 corresponds to the transaction sender, and an index > 0
 // corresponds to an offset into txn.Accounts. Returns an error if the index is

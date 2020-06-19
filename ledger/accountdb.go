@@ -421,6 +421,10 @@ func (qs *accountsDbQueries) lookup(addr basics.Address) (data basics.AccountDat
 	return
 }
 
+func (qs *accountsDbQueries) fetchGlobalKeyValue(aidx basics.AppIndex) (kv basics.TealKeyValue, ok bool, err error) {
+	return make(basics.TealKeyValue), true, nil
+}
+
 func (qs *accountsDbQueries) storeCatchpoint(ctx context.Context, round basics.Round, fileName string, catchpoint string, fileSize int64) (err error) {
 	err = db.Retry(func() (err error) {
 		_, err = qs.deleteStoredCatchpoint.ExecContext(ctx, round)

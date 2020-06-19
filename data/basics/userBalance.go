@@ -176,10 +176,6 @@ type AccountData struct {
 	// total number applications created and opted in to, so that we don't
 	// have to iterate over all of them to compute MinBalance.
 	TotalAppInfo TotalAppInfo `codec:"appinfo"`
-}
-
-type AppData struct {
-	_struct struct{} `codec:",omitempty,omitemptyarray"`
 
 	// AppLocalStates stores the local states associated with any applications
 	// that this account has opted in to.
@@ -190,6 +186,14 @@ type AppData struct {
 	AppParams map[AppIndex]AppParams `codec:"appp,allocbound=encodedMaxAppParams"`
 }
 
+type AppData struct {
+	_struct struct{} `codec:",omitempty,omitemptyarray"`
+
+	// TODO: real allocbound
+	LocalKeyValue  map[AppIndex]TealKeyValue `codec:"lkv,allocbound=4096"`
+	GlobalKeyValue map[AppIndex]TealKeyValue `codec:"gkv,allocbound=4096"`
+}
+
 // AppLocalState stores the LocalState associated with an application. It also
 // stores a cached copy of the application's LocalStateSchema so that
 // MinBalance requirements may be computed 1. without looking up the
@@ -197,19 +201,17 @@ type AppData struct {
 type AppLocalState struct {
 	_struct struct{} `codec:",omitempty,omitemptyarray"`
 
-	Schema   StateSchema  `codec:"hsch"`
-	KeyValue TealKeyValue `codec:"tkv"`
+	Schema StateSchema `codec:"hsch"`
 }
 
 // AppParams stores the global information associated with an application
 type AppParams struct {
 	_struct struct{} `codec:",omitempty,omitemptyarray"`
 
-	ApprovalProgram   []byte       `codec:"approv,allocbound=config.MaxAppProgramLen"`
-	ClearStateProgram []byte       `codec:"clearp,allocbound=config.MaxAppProgramLen"`
-	LocalStateSchema  StateSchema  `codec:"lsch"`
-	GlobalStateSchema StateSchema  `codec:"gsch"`
-	GlobalState       TealKeyValue `codec:"gs"`
+	ApprovalProgram   []byte      `codec:"approv,allocbound=config.MaxAppProgramLen"`
+	ClearStateProgram []byte      `codec:"clearp,allocbound=config.MaxAppProgramLen"`
+	LocalStateSchema  StateSchema `codec:"lsch"`
+	GlobalStateSchema StateSchema `codec:"gsch"`
 }
 
 // Clone returns a copy of some AppParams that may be modified without
@@ -220,7 +222,6 @@ func (ap *AppParams) Clone() (res AppParams) {
 	copy(res.ApprovalProgram, ap.ApprovalProgram)
 	res.ClearStateProgram = make([]byte, len(ap.ClearStateProgram))
 	copy(res.ClearStateProgram, ap.ClearStateProgram)
-	res.GlobalState = ap.GlobalState.Clone()
 	return
 }
 
@@ -228,7 +229,6 @@ func (ap *AppParams) Clone() (res AppParams) {
 // affecting the original
 func (al *AppLocalState) Clone() (res AppLocalState) {
 	res = *al
-	res.KeyValue = al.KeyValue.Clone()
 	return
 }
 

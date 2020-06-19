@@ -69,6 +69,14 @@ type modifiedAccount struct {
 	ndeltas int
 }
 
+type modifiedApp struct {
+	exists  bool
+	ndeltas int
+	creator basics.Address
+	params  basics.AppParams
+	kv      basics.TealKeyValue
+}
+
 type modifiedCreatable struct {
 	// Type of the creatable: app or asset
 	ctype basics.CreatableType
@@ -127,6 +135,13 @@ type accountUpdates struct {
 
 	// creatableDeltas stores creatable updates for every round after dbRound.
 	creatableDeltas []map[basics.CreatableIndex]modifiedCreatable
+
+	// globalAppDeltas stores global app updates for every round after dbRound
+	globalAppDeltas []map[basics.AppIndex]*globalAppDelta
+
+	// globalApps stores the most recent global app state for every app
+	// that appears in globalAppDeltas
+	globalApps map[basics.AppIndex]modifiedApp
 
 	// creatables stores the most recent state for every creatable that
 	// appears in creatableDeltas
@@ -546,6 +561,7 @@ func (au *accountUpdates) newBlock(blk bookkeeping.Block, delta StateDelta) {
 	au.deltas = append(au.deltas, delta.accts)
 	au.protos = append(au.protos, proto)
 	au.creatableDeltas = append(au.creatableDeltas, delta.creatables)
+	au.globalAppDeltas = append(au.globalAppDeltas, delta.appglob)
 	au.roundDigest = append(au.roundDigest, blk.Digest())
 	au.deltasAccum = append(au.deltasAccum, len(delta.accts)+au.deltasAccum[len(au.deltasAccum)-1])
 
@@ -571,6 +587,49 @@ func (au *accountUpdates) newBlock(blk bookkeeping.Block, delta StateDelta) {
 		mcreat.ctype = cdelta.ctype
 		mcreat.ndeltas++
 		au.creatables[cidx] = mcreat
+	}
+
+	for aidx, adelta := range delta.appglob {
+		// What are we doing to the app?
+		mapp := au.globalApps[aidx]
+		switch adelta.stateChange {
+		case deletedGlobalSC:
+			mapp.exists = false
+			mapp.params = basics.AppParams{}
+			mapp.creator = basics.Address{}
+			mapp.kv = nil
+			if len(adelta.kvCow.delta) > 0 {
+				au.log.Panic("got nonzero kv delta for deleted app")
+			}
+		case createdGlobalSC:
+			mapp.exists = true
+			mapp.params = adelta.params
+			mapp.creator = adelta.creator
+			mapp.kv = make(basics.TealKeyValue)
+		case noGlobalSC:
+			mapp.exists = true
+			mapp.params = adelta.params
+		}
+
+		if len(adelta.kvCow.delta) > 0 {
+			if mapp.kv == nil {
+				// We need to initialize the key/value store from the database
+				kv, ok, err := au.accountsq.fetchGlobalKeyValue(aidx)
+				if err != nil || !ok {
+					au.log.Panicf("failed to fetch global kv for app: %v, %v", err, ok)
+				}
+				mapp.kv = kv
+			}
+
+			// Now, we can apply the kv delta to our in-memory delta
+			err := mapp.kv.ApplyStateDelta(adelta.kvCow.delta)
+			if err != nil {
+				au.log.Panicf("failed to apply state delta: %v", err)
+			}
+		}
+
+		mapp.ndeltas++
+		au.globalApps[aidx] = mapp
 	}
 
 	if ot.Overflowed {

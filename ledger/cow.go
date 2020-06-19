@@ -62,10 +62,10 @@ type StateDelta struct {
 	accts map[basics.Address]accountDelta
 
 	// modified local application data (local key/value stores)
-	appaccts map[localAppKey]*modifiedLocalApp
+	appaccts map[localAppKey]*localAppDelta
 
 	// modified global application data (incl. programs + global state)
-	appglob map[basics.AppIndex]*modifiedGlobalApp
+	appglob map[basics.AppIndex]*globalAppDelta
 
 	// new Txids for the txtail and TxnCounter, mapped to txn.LastValid
 	Txids map[transactions.Txid]basics.Round
@@ -87,8 +87,8 @@ func makeRoundCowState(b roundCowParent, hdr bookkeeping.BlockHeader) *roundCowS
 		proto:        config.Consensus[hdr.CurrentProtocol],
 		mods: StateDelta{
 			accts:      make(map[basics.Address]accountDelta),
-			appaccts:   make(map[localAppKey]*modifiedLocalApp),
-			appglob:    make(map[basics.AppIndex]*modifiedGlobalApp),
+			appaccts:   make(map[localAppKey]*localAppDelta),
+			appglob:    make(map[basics.AppIndex]*globalAppDelta),
 			Txids:      make(map[transactions.Txid]basics.Round),
 			txleases:   make(map[txlease]basics.Round),
 			creatables: make(map[basics.CreatableIndex]modifiedCreatable),
@@ -189,8 +189,8 @@ func (cb *roundCowState) child() *roundCowState {
 		proto:        cb.proto,
 		mods: StateDelta{
 			accts:      make(map[basics.Address]accountDelta),
-			appaccts:   make(map[localAppKey]*modifiedLocalApp),
-			appglob:    make(map[basics.AppIndex]*modifiedGlobalApp),
+			appaccts:   make(map[localAppKey]*localAppDelta),
+			appglob:    make(map[basics.AppIndex]*globalAppDelta),
 			Txids:      make(map[transactions.Txid]basics.Round),
 			txleases:   make(map[txlease]basics.Round),
 			creatables: make(map[basics.CreatableIndex]modifiedCreatable),

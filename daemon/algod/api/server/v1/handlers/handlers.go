@@ -229,7 +229,8 @@ func modelAppParams(creator basics.Address, params basics.AppParams) v1.AppParam
 		ClearStateProgram: b64.EncodeToString([]byte(params.ClearStateProgram)),
 		GlobalStateSchema: modelSchema(params.GlobalStateSchema),
 		LocalStateSchema:  modelSchema(params.LocalStateSchema),
-		GlobalState:       modelTealKeyValue(params.GlobalState),
+		// TODO(maxj) fix post refactor
+		//		GlobalState:       modelTealKeyValue(params.GlobalState),
 	}
 	if !creator.IsZero() {
 		res.Creator = creator.String()
@@ -239,8 +240,9 @@ func modelAppParams(creator basics.Address, params basics.AppParams) v1.AppParam
 
 func modelAppLocalState(s basics.AppLocalState) v1.AppLocalState {
 	return v1.AppLocalState{
-		Schema:   modelSchema(s.Schema),
-		KeyValue: modelTealKeyValue(s.KeyValue),
+		Schema: modelSchema(s.Schema),
+		// TODO(maxj) fix post refactor
+		//		KeyValue: modelTealKeyValue(s.KeyValue),
 	}
 }
 
@@ -775,24 +777,24 @@ func AccountInformation(ctx lib.ReqContext, context echo.Context) {
 		}
 	}
 
-// TODO(maxj) fix post refactor
-/*
-	var apps map[uint64]v1.AppLocalState
-	if len(record.AppLocalStates) > 0 {
-		apps = make(map[uint64]v1.AppLocalState)
-		for idx, state := range record.AppLocalStates {
-			apps[uint64(idx)] = modelAppLocalState(state)
+	// TODO(maxj) fix post refactor
+	/*
+		var apps map[uint64]v1.AppLocalState
+		if len(record.AppLocalStates) > 0 {
+			apps = make(map[uint64]v1.AppLocalState)
+			for idx, state := range record.AppLocalStates {
+				apps[uint64(idx)] = modelAppLocalState(state)
+			}
 		}
-	}
 
-	var appParams map[uint64]v1.AppParams
-	if len(record.AppParams) > 0 {
-		appParams = make(map[uint64]v1.AppParams)
-		for idx, params := range record.AppParams {
-			appParams[uint64(idx)] = modelAppParams(addr, params)
+		var appParams map[uint64]v1.AppParams
+		if len(record.AppParams) > 0 {
+			appParams = make(map[uint64]v1.AppParams)
+			for idx, params := range record.AppParams {
+				appParams[uint64(idx)] = modelAppParams(addr, params)
+			}
 		}
-	}
-*/
+	*/
 	var apiParticipation *v1.Participation
 	if record.VoteID != (crypto.OneTimeSignatureVerifier{}) {
 		apiParticipation = participationKeysEncode(record)
@@ -809,8 +811,8 @@ func AccountInformation(ctx lib.ReqContext, context echo.Context) {
 		Participation:               apiParticipation,
 		AssetParams:                 assetParams,
 		Assets:                      assets,
-//		AppParams:                   appParams,
-//		AppLocalStates:              apps,
+		//		AppParams:                   appParams,
+		//		AppLocalStates:              apps,
 	}
 
 	SendJSON(AccountInformationResponse{&accountInfo}, w, ctx.Log)
@@ -1405,43 +1407,43 @@ func ApplicationInformation(ctx lib.ReqContext, context echo.Context) {
 	//       401: { description: Invalid API Token }
 	//       default: { description: Unknown Error }
 
-/*	w := context.Response().Writer
+	/*	w := context.Response().Writer
 
-	queryIndex, err := strconv.ParseUint(context.Param("index"), 10, 64)
+		queryIndex, err := strconv.ParseUint(context.Param("index"), 10, 64)
 
-	if err != nil {
-		lib.ErrorResponse(w, http.StatusBadRequest, err, errFailedToParseAppIndex, ctx.Log)
-		return
-	}
+		if err != nil {
+			lib.ErrorResponse(w, http.StatusBadRequest, err, errFailedToParseAppIndex, ctx.Log)
+			return
+		}
 
-	ledger := ctx.Node.Ledger()
-	aidx := basics.AppIndex(queryIndex)
-	creator, ok, err := ledger.GetAppCreator(aidx)
-	if err != nil {
-		lib.ErrorResponse(w, http.StatusNotFound, err, errFailedToGetAppCreator, ctx.Log)
-		return
-	}
-	if !ok {
-		lib.ErrorResponse(w, http.StatusNotFound, err, errAppDoesNotExist, ctx.Log)
-		return
-	}
+		ledger := ctx.Node.Ledger()
+		aidx := basics.AppIndex(queryIndex)
+		creator, ok, err := ledger.GetAppCreator(aidx)
+		if err != nil {
+			lib.ErrorResponse(w, http.StatusNotFound, err, errFailedToGetAppCreator, ctx.Log)
+			return
+		}
+		if !ok {
+			lib.ErrorResponse(w, http.StatusNotFound, err, errAppDoesNotExist, ctx.Log)
+			return
+		}
 
-	lastRound := ledger.Latest()
-*/ /*	record, err := ledger.Lookup(lastRound, creator)
-	if err != nil {
-		lib.ErrorResponse(w, http.StatusInternalServerError, err, errFailedLookingUpLedger, ctx.Log)
-		return
-	}*/
-// TODO(maxj) fix post refactor
-/*
-	if app, ok := record.AppParams[aidx]; ok {
-		appParams := modelAppParams(creator, app)
-		SendJSON(ApplicationInformationResponse{&appParams}, w, ctx.Log)
-	} else {
-		lib.ErrorResponse(w, http.StatusBadRequest, fmt.Errorf(errFailedRetrievingApp), errFailedRetrievingApp, ctx.Log)
-		return
-	}
-*/
+		lastRound := ledger.Latest()
+	*/ /*	record, err := ledger.Lookup(lastRound, creator)
+		if err != nil {
+			lib.ErrorResponse(w, http.StatusInternalServerError, err, errFailedLookingUpLedger, ctx.Log)
+			return
+		}*/
+	// TODO(maxj) fix post refactor
+	/*
+		if app, ok := record.AppParams[aidx]; ok {
+			appParams := modelAppParams(creator, app)
+			SendJSON(ApplicationInformationResponse{&appParams}, w, ctx.Log)
+		} else {
+			lib.ErrorResponse(w, http.StatusBadRequest, fmt.Errorf(errFailedRetrievingApp), errFailedRetrievingApp, ctx.Log)
+			return
+		}
+	*/
 }
 
 // Applications is an httpHandler for route GET /v1/applications
@@ -1508,40 +1510,40 @@ func Applications(ctx lib.ReqContext, context echo.Context) {
 	}
 
 	// Query app range from the database
-//	ledger := ctx.Node.Ledger()
-/*	alocs, err := ledger.ListApplications(basics.AppIndex(appIdx), uint64(max))
-	if err != nil {
-		lib.ErrorResponse(w, http.StatusInternalServerError, err, errFailedRetrievingApp, ctx.Log)
-		return
-	}
-*/
-// TODO(maxj) fix post refactor
-/*
-	// Fill in the app models
-	lastRound := ledger.Latest()*/
-	var result v1.ApplicationList/*
-	for _, aloc := range alocs {
-		// Fetch the app parameters
-		creatorRecord, err := ledger.Lookup(lastRound, aloc.Creator)
+	//	ledger := ctx.Node.Ledger()
+	/*	alocs, err := ledger.ListApplications(basics.AppIndex(appIdx), uint64(max))
 		if err != nil {
-			lib.ErrorResponse(w, http.StatusInternalServerError, err, errFailedLookingUpLedger, ctx.Log)
+			lib.ErrorResponse(w, http.StatusInternalServerError, err, errFailedRetrievingApp, ctx.Log)
 			return
 		}
+	*/
+	// TODO(maxj) fix post refactor
+	/*
+		// Fill in the app models
+		lastRound := ledger.Latest()*/
+	var result v1.ApplicationList /*
+		for _, aloc := range alocs {
+			// Fetch the app parameters
+			creatorRecord, err := ledger.Lookup(lastRound, aloc.Creator)
+			if err != nil {
+				lib.ErrorResponse(w, http.StatusInternalServerError, err, errFailedLookingUpLedger, ctx.Log)
+				return
+			}
 
-		// Ensure no race with app deletion
-		rp, ok := creatorRecord.AppParams[basics.AppIndex(aloc.Index)]
-		if !ok {
-			continue
+			// Ensure no race with app deletion
+			rp, ok := creatorRecord.AppParams[basics.AppIndex(aloc.Index)]
+			if !ok {
+				continue
+			}
+
+			// Append the result
+			params := modelAppParams(aloc.Creator, rp)
+			result.Applications = append(result.Applications, v1.Application{
+				AppIndex:  uint64(aloc.Index),
+				AppParams: params,
+			})
 		}
-
-		// Append the result
-		params := modelAppParams(aloc.Creator, rp)
-		result.Applications = append(result.Applications, v1.Application{
-			AppIndex:  uint64(aloc.Index),
-			AppParams: params,
-		})
-	}
-*/
+	*/
 
 	SendJSON(ApplicationsResponse{&result}, w, ctx.Log)
 }

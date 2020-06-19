@@ -180,7 +180,7 @@ type StateSchema struct {
 type TotalAppInfo struct {
 	_struct struct{} `codec:",omitempty,omitemptyarray"`
 
-	Schema  StateSchema
+	Schema     StateSchema
 	NumCreated uint64
 	NumOptedIn uint64
 }
@@ -294,6 +294,35 @@ func (tk TealKeyValue) Clone() TealKeyValue {
 		res[k] = v
 	}
 	return res
+}
+
+func (kv TealKeyValue) ApplyStateDelta(stateDelta StateDelta) error {
+	if kv == nil {
+		return fmt.Errorf("cannot apply delta to nil TealKeyValue")
+	}
+
+	// Because the keys of stateDelta each correspond to one existing/new
+	// key in the key/value store, there can be at most one delta per key.
+	// Therefore the order that the deltas are applied does not matter.
+	for key, valueDelta := range stateDelta {
+		switch valueDelta.Action {
+		case SetUintAction:
+			kv[key] = TealValue{
+				Type: TealUintType,
+				Uint: valueDelta.Uint,
+			}
+		case SetBytesAction:
+			kv[key] = TealValue{
+				Type:  TealBytesType,
+				Bytes: valueDelta.Bytes,
+			}
+		case DeleteAction:
+			delete(kv, key)
+		default:
+			return fmt.Errorf("unknown delta action %d", valueDelta.Action)
+		}
+	}
+	return nil
 }
 
 // SatisfiesSchema returns an error indicating whether or not a particular
