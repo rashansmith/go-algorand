@@ -20,8 +20,6 @@ import (
 	"github.com/algorand/go-algorand/data/basics"
 )
 
-type baseGetter func(key string) (value basics.TealValue, ok bool)
-
 type keyValueCow struct {
 	delta basics.StateDelta
 }
@@ -48,27 +46,12 @@ func (kvc *keyValueCow) read(key string) (hitCow bool, value basics.TealValue, o
 	return false, basics.TealValue{}, false
 }
 
-func (kvc *keyValueCow) write(key string, value basics.TealValue, bv basics.TealValue, bvok bool) {
-	// If the value being written is identical to the underlying key/value,
-	// then ensure there is no delta entry for the key.
-	if bvok && value == bv {
-		delete(kvc.delta, key)
-	} else {
-		// Otherwise, update the delta with the new value.
-		kvc.delta[key] = value.ToValueDelta()
-	}
+func (kvc *keyValueCow) write(key string, value basics.TealValue) {
+	kvc.delta[key] = value.ToValueDelta()
 }
 
-func (kvc *keyValueCow) del(key string, bvok bool) {
-	if bvok {
-		// If the key already exists in the underlying key/value,
-		// update the delta to indicate that the value was deleted.
-		kvc.delta[key] = basics.ValueDelta{
-			Action: basics.DeleteAction,
-		}
-	} else {
-		// Since the key didn't exist in the underlying key/value,
-		// don't include a delta entry for its deletion.
-		delete(kvc.delta, key)
+func (kvc *keyValueCow) del(key string) {
+	kvc.delta[key] = basics.ValueDelta{
+		Action: basics.DeleteAction,
 	}
 }

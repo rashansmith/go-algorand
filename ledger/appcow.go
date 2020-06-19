@@ -269,24 +269,9 @@ func (cb *roundCowState) setLocal(addr basics.Address, appIdx basics.AppIndex, k
 	// Ensure we have a kv cow
 	modLocalApp := cb.ensureModLocalApp(addr, appIdx)
 
-	// If we are opting in in this cow, don't look up backing values, and
-	// always write to the kv cow, since our parent will not have local
-	// state for us
-	if modLocalApp.stateChange == optedInLocalSC {
-		modLocalApp.kvCow.write(key, value, basics.TealValue{}, false)
-	} else {
-		// Look up backing value (so we don't generate a delta if writing a
-		// value equal to the backing value). By this point, we have checked
-		// that the user is not opting in to or opting out of the app, so they
-		// better already be opted in if the user is making a valid call.
-		bv, bvok, err := cb.lookupParent.getLocal(addr, appIdx, key)
-		if err != nil {
-			return err
-		}
+	// Write to the cow
+	modLocalApp.kvCow.write(key, value)
 
-		// Write to the cow
-		modLocalApp.kvCow.write(key, value, bv, bvok)
-	}
 	return nil
 }
 
@@ -304,22 +289,9 @@ func (cb *roundCowState) delLocal(addr basics.Address, appIdx basics.AppIndex, k
 	// Ensure we have a kv cow
 	modLocalApp := cb.ensureModLocalApp(addr, appIdx)
 
-	// If we are opting in in this cow, don't look up backing values, and
-	// tell the kvCow that a backing value is not present, since our parent
-	// will not have local state for us
-	if modLocalApp.stateChange == optedInLocalSC {
-		modLocalApp.kvCow.del(key, false)
-	} else {
-		// Look up if backing value existed (so we don't generate a delta if
-		// there was no entry for the key before)
-		_, bvok, err := cb.lookupParent.getLocal(addr, appIdx, key)
-		if err != nil {
-			return err
-		}
+	// Write to the cow
+	modLocalApp.kvCow.del(key)
 
-		// Write to the cow
-		modLocalApp.kvCow.del(key, bvok)
-	}
 	return nil
 }
 
@@ -369,23 +341,9 @@ func (cb *roundCowState) setGlobal(appIdx basics.AppIndex, key string, value bas
 	// Ensure we have a kv cow
 	modGlobalApp := cb.ensureModGlobalApp(appIdx)
 
-	// If app is being created, don't look up backing values, and always
-	// write to the kv cow, since the app will not exist in our parent
-	if modGlobalApp.stateChange == createdGlobalSC {
-		modGlobalApp.kvCow.write(key, value, basics.TealValue{}, false)
-	} else {
-		// Look up backing value (so we don't generate a delta if writing a
-		// value equal to the backing value). By this point, we have checked
-		// that the app is not being created or deleted in this cow, so it
-		// better exist if the user is making a valid call.
-		bv, bvok, err := cb.lookupParent.getGlobal(appIdx, key)
-		if err != nil {
-			return err
-		}
+	// Write to the cow
+	modGlobalApp.kvCow.write(key, value)
 
-		// Write to the cow
-		modGlobalApp.kvCow.write(key, value, bv, bvok)
-	}
 	return nil
 }
 
@@ -403,22 +361,9 @@ func (cb *roundCowState) delGlobal(appIdx basics.AppIndex, key string) (err erro
 	// Ensure we have a kv cow
 	modGlobalApp := cb.ensureModGlobalApp(appIdx)
 
-	// If app is being created, don't look up whether the key exists in
-	// parent, and delete any entry for this key in the kv delta (the
-	// parent will not have an entry, since the app didn't exist)
-	if modGlobalApp.stateChange == createdGlobalSC {
-		modGlobalApp.kvCow.del(key, false)
-	} else {
-		// Look up if backing value existed (so we don't generate a delta if
-		// there was no entry for the key before)
-		_, bvok, err := cb.lookupParent.getGlobal(appIdx, key)
-		if err != nil {
-			return err
-		}
+	// Write to the cow
+	modGlobalApp.kvCow.del(key)
 
-		// Write to the cow
-		modGlobalApp.kvCow.del(key, bvok)
-	}
 	return nil
 }
 
