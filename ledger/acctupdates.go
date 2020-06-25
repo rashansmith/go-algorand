@@ -393,7 +393,7 @@ func (au *accountUpdates) getCreatorForRound(rnd basics.Round, cidx basics.Creat
 
 	// If this is the most recent round, au.creatables has will have the latest
 	// state and we can skip scanning backwards over creatableDeltas
-	if offset == uint64(len(au.deltas)) {
+	if offset == uint64(len(au.creatableDeltas)) {
 		// Check if we already have the asset/creator in cache
 		creatableDelta, ok := au.creatables[cidx]
 		if ok {
